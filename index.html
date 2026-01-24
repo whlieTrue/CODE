@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>만남의 광장</title>
+    <title>실시간 끝말잇기 광장</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .chat-container::-webkit-scrollbar { width: 6px; }
@@ -26,10 +26,9 @@
         </div>
         
         <div class="space-y-6">
-            <!-- 에러 발생 시 안내창 -->
             <div id="auth-error-notice" class="hidden p-4 bg-red-50 rounded-2xl text-xs text-red-600 border border-red-100 mb-4 text-left">
                 <strong id="error-title">연결 오류:</strong><br>
-                <span id="error-details">Firebase API 키가 유효하지 않습니다. 설정을 확인해주세요.</span>
+                <span id="error-details">로그인 처리 중 문제가 발생했습니다.</span>
             </div>
             
             <div class="p-6 bg-indigo-50 rounded-2xl text-sm text-indigo-700 leading-relaxed">
@@ -131,57 +130,19 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // Firebase 설정 가져오기 및 유효성 검사
-        let firebaseConfig = {};
-        try {
-            const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
-            firebaseConfig = JSON.parse(configStr);
-            
-            // 만약 __firebase_config가 비어있다면, 이전에 사용하던 키를 수동으로 입력하거나 
-            // 시스템에서 제공하는 설정을 사용해야 합니다.
-            if (!firebaseConfig.apiKey) {
-                console.error("Firebase API Key가 없습니다. 설정을 확인하세요.");
-                document.getElementById('auth-error-notice').classList.remove('hidden');
-            }
-        } catch (e) {
-            console.error("설정 파싱 에러:", e);
-        }
+        // Firebase 설정 (직접 입력됨)
+        const firebaseConfig = {
+            apiKey: "AIzaSyB-YourActualApiKeyHere", // 실제 API 키로 교체하세요
+            authDomain: "word-relay-matching.firebaseapp.com",
+            projectId: "word-relay-matching",
+            storageBucket: "word-relay-matching.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef123456"
+        };
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'word-relay-matching';
 
         let app, auth, db, provider;
-        
-        // 초기화 가드: 설정이 있을 때만 진행
-        if (firebaseConfig.apiKey) {
-            try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                provider = new GoogleAuthProvider();
-                
-                // 인증 상태 감시 (auth가 있을 때만 실행)
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        currentUser = user;
-                        document.getElementById('user-name').innerText = user.displayName;
-                        document.getElementById('user-photo').src = user.photoURL;
-                        authScreen.classList.add('hidden');
-                        lobbyScreen.classList.remove('hidden');
-                        listenToRooms();
-                    } else {
-                        currentUser = null;
-                        authScreen.classList.remove('hidden');
-                        lobbyScreen.classList.add('hidden');
-                        gameScreen.classList.add('hidden');
-                    }
-                });
-            } catch (e) {
-                console.error("Firebase 서비스 시작 실패:", e);
-                document.getElementById('auth-error-notice').classList.remove('hidden');
-                document.getElementById('error-details').innerText = e.message;
-            }
-        }
-
         let currentUser = null;
         let currentRoomId = null;
         let currentRoomData = null;
@@ -195,24 +156,48 @@
         const authScreen = document.getElementById('auth-screen');
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
+        const authErrorNotice = document.getElementById('auth-error-notice');
 
-        // 로그인 버튼 이벤트
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            provider = new GoogleAuthProvider();
+
+            // 인증 상태 감시
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('user-name').innerText = user.displayName;
+                    document.getElementById('user-photo').src = user.photoURL;
+                    authScreen.classList.add('hidden');
+                    lobbyScreen.classList.remove('hidden');
+                    listenToRooms();
+                } else {
+                    currentUser = null;
+                    authScreen.classList.remove('hidden');
+                    lobbyScreen.classList.add('hidden');
+                    gameScreen.classList.add('hidden');
+                }
+            });
+        } catch (e) {
+            console.error("Firebase 초기화 에러:", e);
+            authErrorNotice.classList.remove('hidden');
+            document.getElementById('error-details').innerText = "Firebase 초기화에 실패했습니다. API 키를 확인하세요.";
+        }
+
+        // 구글 로그인
         document.getElementById('btn-google-login').onclick = async () => {
-            if (!auth) {
-                alert("인증 시스템이 초기화되지 않았습니다. API 키를 확인해주세요.");
-                return;
-            }
+            if (!auth) return;
             try {
                 await signInWithPopup(auth, provider);
             } catch (error) {
-                console.error("로그인 에러:", error);
-                const notice = document.getElementById('auth-error-notice');
-                notice.classList.remove('hidden');
+                console.error("Login Error:", error);
+                authErrorNotice.classList.remove('hidden');
                 document.getElementById('error-details').innerText = error.message;
             }
         };
 
-        // 이하 게임 로직 (수정 없음)
         const listenToRooms = () => {
             const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms');
             onSnapshot(roomsRef, (snapshot) => {
