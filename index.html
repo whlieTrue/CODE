@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 끝말잇기 광장 (관리자 기능 포함)</title>
+    <title>실시간 끝말잇기 광장 (보안 강화형)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .chat-container::-webkit-scrollbar { width: 6px; }
@@ -28,12 +28,12 @@
         
         <div class="space-y-6">
             <div id="auth-error-notice" class="hidden p-4 bg-red-50 rounded-2xl text-xs text-red-600 border border-red-100 mb-4 text-left">
-                <strong>도메인 오류 해결 방법:</strong><br>
-                Firebase 콘솔 > Authentication > Settings > Authorized domains에 현재 접속 중인 도메인을 추가해야 합니다.
+                <strong>도메인 인증 오류:</strong><br>
+                Firebase 콘솔의 'Authorized domains' 설정에 현재 주소를 추가해야 로그인이 작동합니다.
             </div>
             
             <div class="p-6 bg-indigo-50 rounded-2xl text-sm text-indigo-700 leading-relaxed">
-                계정 정보를 안전하게 보호하기 위해<br><strong>구글 로그인</strong>이 필요합니다.
+                계정 보안을 위해<br><strong>Google 로그인</strong>을 사용합니다.
             </div>
             
             <button id="btn-google-login" class="google-btn w-full flex items-center justify-center gap-4 bg-white border border-gray-100 py-4 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all">
@@ -51,13 +51,13 @@
                     <h1 class="text-3xl font-black text-indigo-600 italic">Word Relay</h1>
                     <span id="admin-tag" class="hidden admin-badge text-[10px] text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Admin</span>
                 </div>
-                <p class="text-gray-500">대결에 참여하거나 새로운 방을 만드세요.</p>
+                <p class="text-gray-500">원하는 대결 방에 입장하거나 새로 만드세요.</p>
             </div>
             <div class="flex flex-col items-end gap-3">
                 <div class="flex items-center gap-3 bg-slate-50 p-2 pl-4 rounded-2xl border border-slate-100 shadow-sm">
                     <div class="text-right">
                         <p id="user-name" class="font-bold text-sm text-gray-800">플레이어</p>
-                        <button id="btn-logout" class="text-[10px] font-bold text-red-400 hover:text-red-600 transition-colors uppercase">Sign Out</button>
+                        <button id="btn-logout" class="text-[10px] font-bold text-red-400 hover:text-red-600 transition-colors uppercase">Logout</button>
                     </div>
                     <img id="user-photo" src="" class="w-10 h-10 rounded-full border-2 border-indigo-200 bg-gray-100 shadow-inner">
                 </div>
@@ -66,24 +66,18 @@
         </div>
         
         <div id="room-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px] overflow-y-auto pr-2">
-            <div class="col-span-full flex flex-col items-center justify-center text-gray-400 h-full">
-                <div class="animate-pulse mb-2">● ● ●</div>
-                <p>로비 정보를 동기화 중...</p>
-            </div>
+            <!-- 룸 리스트 동적 삽입 -->
         </div>
     </div>
 
     <!-- 방 만들기 모달 -->
     <div id="create-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm">
         <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-fade">
-            <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-                <span class="w-2 h-8 bg-indigo-600 rounded-full"></span>
-                새 게임 설정
-            </h2>
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">새 게임 생성</h2>
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-600 mb-1">방 제목</label>
-                    <input type="text" id="room-title-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="한판 붙자!">
+                    <input type="text" id="room-title-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="끝말잇기 한판!">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -106,7 +100,7 @@
             </div>
             <div class="flex gap-3 mt-8">
                 <button id="btn-close-modal" class="flex-1 px-4 py-3 rounded-xl bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 transition-all">취소</button>
-                <button id="btn-create-confirm" class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 font-bold text-white hover:bg-indigo-700 shadow-lg transition-all active:scale-95">생성하기</button>
+                <button id="btn-create-confirm" class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 font-bold text-white hover:bg-indigo-700 shadow-lg transition-all active:scale-95">생성</button>
             </div>
         </div>
     </div>
@@ -119,52 +113,58 @@
 
         <div class="bg-indigo-600 pt-6 pb-4 px-4 text-white">
             <div class="flex justify-between items-center">
-                <button id="btn-exit" class="text-indigo-200 hover:text-white transition-colors p-1">
+                <button id="btn-exit" class="text-indigo-200 hover:text-white transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                 </button>
                 <div class="text-center">
-                    <h2 id="display-room-title" class="font-bold text-sm truncate w-40">Room Name</h2>
-                    <p id="display-room-info" class="text-[10px] opacity-70 uppercase tracking-widest mt-0.5 font-bold">0/4 PLAYERS</p>
+                    <h2 id="display-room-title" class="font-bold text-sm truncate w-40">로딩 중...</h2>
+                    <p id="display-room-info" class="text-[10px] opacity-70 uppercase mt-0.5">0/0 PLAYERS</p>
                 </div>
-                <div id="room-timer-text" class="font-mono text-xs bg-black/30 px-2 py-1 rounded-lg border border-white/20">10.0s</div>
+                <div id="room-timer-text" class="font-mono text-xs bg-black/30 px-2 py-1 rounded-lg">0.0s</div>
             </div>
         </div>
 
-        <div class="p-8 bg-indigo-50 text-center relative border-b border-indigo-100">
-            <div class="text-[10px] font-black text-indigo-300 mb-2 uppercase tracking-tighter">Current Last Word</div>
-            <div id="current-word" class="text-5xl font-black text-indigo-900 drop-shadow-sm italic">...</div>
+        <div class="p-8 bg-indigo-50 text-center border-b border-indigo-100">
+            <div class="text-[10px] font-black text-indigo-300 mb-2 uppercase">Current Word</div>
+            <div id="current-word" class="text-5xl font-black text-indigo-900 italic">...</div>
         </div>
 
         <div id="history-container" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 bg-white"></div>
 
         <div class="p-4 bg-gray-50 border-t border-gray-100">
             <form id="word-form" class="flex gap-2">
-                <input type="text" id="word-input" autocomplete="off" placeholder="단어를 입력하세요..." class="flex-1 px-5 py-4 rounded-2xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm">
-                <button type="submit" class="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg active:scale-95 transition-all">전송</button>
+                <input type="text" id="word-input" autocomplete="off" placeholder="단어를 입력하세요..." class="flex-1 px-5 py-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                <button type="submit" class="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg active:scale-95">전송</button>
             </form>
-            <p id="error-msg" class="text-red-500 text-[11px] mt-3 font-bold text-center hidden animate-bounce"></p>
+            <p id="error-msg" class="text-red-500 text-[11px] mt-3 font-bold text-center hidden"></p>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc, query } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyB7NGfWI8I_qjsA3sBJXCPq8g45qXzPipA",
-            authDomain: "wordliner1234.firebaseapp.com",
-            projectId: "wordliner1234",
-            storageBucket: "wordliner1234.firebasestorage.app",
-            messagingSenderId: "740901576178",
-            appId: "1:740901576178:web:40d66fdbdce871be1f9f6b",
-            measurementId: "G-C6QD2SJZ4D"
-        };
+        /**
+         * [보안 참고 사항]
+         * 브라우저 기반 앱은 소스 코드 노출이 불가피합니다.
+         * 대신 Firebase 콘솔에서 '도메인 제한' 및 '보안 규칙'을 설정하여 
+         * 키가 노출되더라도 데이터 조작을 방지해야 합니다.
+         */
+        
+        // 시스템에서 주입하는 환경 변수 우선 사용
+        const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+        const firebaseConfig = JSON.parse(configStr);
 
-        // 관리자 이메일 목록 (여기에 본인의 구글 이메일을 추가하세요)
-        const ADMIN_EMAILS = ["your-email@gmail.com", "admin@example.com"]; 
+        // 만약 환경 변수가 비어있다면, 사용자에게 콘솔 메시지 표시 (개발 환경 확인용)
+        if (!firebaseConfig.apiKey) {
+            console.error("Firebase Config가 설정되지 않았습니다. 환경 변수 주입을 확인하세요.");
+        }
 
-        const appId = 'word-relay-matching';
+        // 관리자 설정 (이메일로 구분)
+        const ADMIN_EMAILS = ["your-admin-email@gmail.com"]; 
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'word-relay-matching';
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -181,6 +181,7 @@
         let timerInterval = null;
         let timeLeft = 0;
 
+        // UI 요소
         const authScreen = document.getElementById('auth-screen');
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
@@ -193,6 +194,7 @@
         const timerText = document.getElementById('room-timer-text');
         const adminTag = document.getElementById('admin-tag');
 
+        // 인증 감시
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
@@ -200,9 +202,7 @@
                 
                 document.getElementById('user-name').innerText = user.displayName;
                 document.getElementById('user-photo').src = user.photoURL;
-                
                 if (isAdmin) adminTag.classList.remove('hidden');
-                else adminTag.classList.add('hidden');
 
                 authScreen.classList.add('hidden');
                 lobbyScreen.classList.remove('hidden');
@@ -217,35 +217,25 @@
             }
         });
 
+        // Google 로그인
         document.getElementById('btn-google-login').onclick = async () => {
             try {
                 await signInWithPopup(auth, provider);
             } catch (error) {
-                console.error("Login Failed:", error);
                 if (error.code === 'auth/unauthorized-domain') {
                     document.getElementById('auth-error-notice').classList.remove('hidden');
                 } else {
-                    alert("로그인 중 오류가 발생했습니다: " + error.message);
+                    console.error("Login Error:", error);
                 }
             }
         };
 
+        // 로그아웃
         document.getElementById('btn-logout').onclick = () => {
             if (confirm("로그아웃 하시겠습니까?")) signOut(auth);
         };
 
-        const deleteRoomByAdmin = async (e, roomId) => {
-            e.stopPropagation(); // 카드 클릭 이벤트 방지
-            if (!isAdmin) return;
-            if (confirm("관리자 권한으로 이 방을 강제 폐쇄하시겠습니까?")) {
-                try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId));
-                } catch (err) {
-                    alert("삭제 실패: " + err.message);
-                }
-            }
-        };
-
+        // 로비: 방 목록 실시간 감시
         const listenToRooms = () => {
             const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms');
             onSnapshot(roomsRef, (snapshot) => {
@@ -253,40 +243,49 @@
                 const rooms = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 
                 if (rooms.length === 0) {
-                    roomList.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center text-gray-300 h-full"><p class="font-bold">진행 중인 게임이 없습니다.</p></div>`;
+                    roomList.innerHTML = `<div class="col-span-full text-center text-gray-400 py-10">진행 중인 방이 없습니다.</div>`;
                     return;
                 }
 
                 rooms.forEach(room => {
                     const card = document.createElement('div');
-                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group shadow-sm animate-fade relative";
+                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group relative shadow-sm animate-fade";
                     
-                    let adminBtn = isAdmin ? `<button class="absolute top-2 right-2 bg-red-100 text-red-600 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:text-white" title="강제 삭제">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>` : '';
+                    // 관리자 전용 삭제 버튼
+                    let adminBtn = isAdmin ? `
+                        <button class="admin-delete absolute top-2 right-2 bg-red-100 text-red-600 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:text-white" data-id="${room.id}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>` : '';
 
                     card.innerHTML = `
                         ${adminBtn}
                         <div class="flex justify-between items-start mb-3">
-                            <h3 class="font-bold text-gray-800 group-hover:text-indigo-600 transition-colors truncate w-32">${room.title}</h3>
-                            <span class="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-black uppercase">${room.playerCount || 0}/${room.maxPlayers} Players</span>
+                            <h3 class="font-bold text-gray-800 truncate w-32">${room.title}</h3>
+                            <span class="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-black">${room.playerCount || 0}/${room.maxPlayers}</span>
                         </div>
                         <div class="flex items-center gap-2 mb-4">
-                            <span class="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-md font-bold uppercase">⏱ ${room.timeLimit || 10}s</span>
-                            <span class="text-[10px] text-gray-400 truncate">Host: ${room.hostName || 'Unknown'}</span>
+                            <span class="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-md font-bold">⏱ ${room.timeLimit}s</span>
+                            <span class="text-[10px] text-gray-400 truncate">Host: ${room.hostName}</span>
                         </div>
-                        <button class="w-full py-2.5 bg-white border border-indigo-200 rounded-xl text-indigo-600 font-black text-xs group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">Join Game</button>
+                        <button class="w-full py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600 font-black text-xs group-hover:bg-indigo-600 group-hover:text-white transition-all">입장하기</button>
                     `;
                     
                     card.onclick = () => joinRoom(room.id);
+                    
                     if (isAdmin) {
-                        card.querySelector('button').onclick = (e) => deleteRoomByAdmin(e, room.id);
+                        card.querySelector('.admin-delete').onclick = async (e) => {
+                            e.stopPropagation();
+                            if (confirm("관리자 권한으로 이 방을 강제 폐쇄하시겠습니까?")) {
+                                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', room.id));
+                            }
+                        };
                     }
                     roomList.appendChild(card);
                 });
-            }, (err) => console.error("Room Sync Error:", err));
+            });
         };
 
+        // 방 생성
         const createRoom = async () => {
             if (!currentUser) return;
             const title = document.getElementById('room-title-input').value.trim() || `${currentUser.displayName}의 방`;
@@ -305,9 +304,10 @@
                 });
                 joinRoom(newRoom.id);
                 closeModal();
-            } catch (err) { console.error("Room Creation Failed:", err); }
+            } catch (err) { console.error("Create Room Error"); }
         };
 
+        // 방 입장
         const joinRoom = async (roomId) => {
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
@@ -316,7 +316,7 @@
                 const data = roomSnap.data();
 
                 if (!data.players.includes(currentUser.uid)) {
-                    if (data.playerCount >= data.maxPlayers) { alert("방 인원이 초과되었습니다."); return; }
+                    if (data.playerCount >= data.maxPlayers) { alert("방이 꽉 찼습니다."); return; }
                     await updateDoc(roomRef, {
                         players: [...data.players, currentUser.uid],
                         playerCount: data.playerCount + 1
@@ -330,9 +330,10 @@
                 listenToRoomUpdates();
                 listenToGameHistory();
                 hideError();
-            } catch (err) { console.error("Join Error:", err); }
+            } catch (err) { console.error("Join Room Error"); }
         };
 
+        // 게임 중 실시간 업데이트
         const listenToRoomUpdates = () => {
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
             unsubscribeRoom = onSnapshot(roomRef, (snap) => {
@@ -343,6 +344,7 @@
             });
         };
 
+        // 채팅/단어 기록 감시
         const listenToGameHistory = () => {
             const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history');
             unsubscribeHistory = onSnapshot(historyRef, (snapshot) => {
@@ -351,18 +353,22 @@
                 usedWords = new Set(logs.map(log => log.word));
                 historyContainer.innerHTML = '';
                 
-                if (logs.length === 0) { currentWordDisplay.innerText = "READY"; lastWord = ""; }
-                else {
+                if (logs.length === 0) { 
+                    currentWordDisplay.innerText = "START"; 
+                    lastWord = ""; 
+                } else {
                     logs.forEach(log => {
                         const isMe = log.userId === currentUser.uid;
                         const div = document.createElement('div');
                         div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade`;
                         div.innerHTML = `
                             <div class="max-w-[85%]">
-                                <div class="flex items-center gap-1.5 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
-                                    <span class="text-[9px] text-gray-400 font-black uppercase tracking-tighter">${log.userName || 'Unknown'}</span>
+                                <div class="flex items-center gap-1 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
+                                    <span class="text-[9px] text-gray-400 font-bold">${log.userName || 'Unknown'}</span>
                                 </div>
-                                <div class="px-5 py-3 rounded-2xl shadow-sm font-bold text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'}">${log.word}</div>
+                                <div class="px-4 py-2.5 rounded-2xl shadow-sm font-bold text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'}">
+                                    ${log.word}
+                                </div>
                             </div>
                         `;
                         historyContainer.appendChild(div);
@@ -375,6 +381,7 @@
             });
         };
 
+        // 타이머 로직
         const resetTimer = () => {
             clearInterval(timerInterval);
             if (!currentRoomData) return;
@@ -384,9 +391,8 @@
                 timeLeft -= 0.1;
                 if (timeLeft <= 0) {
                     timeLeft = 0; clearInterval(timerInterval);
-                    showError("TIME OUT! GAME OVER");
+                    showError("시간 초과! 패배했습니다.");
                     currentWordDisplay.innerText = "😵";
-                    lastWord = "";
                 }
                 const percentage = (timeLeft / limit) * 100;
                 timerProgressBar.style.width = `${percentage}%`;
@@ -395,6 +401,7 @@
             }, 100);
         };
 
+        // 퇴장
         const exitRoom = async () => {
             if (currentRoomId) {
                 try {
@@ -406,7 +413,7 @@
                         if (newPlayers.length === 0) await deleteDoc(roomRef);
                         else await updateDoc(roomRef, { players: newPlayers, playerCount: newPlayers.length });
                     }
-                } catch (err) { console.error("Exit Error:", err); }
+                } catch (err) {}
             }
             stopAllGameListeners();
             currentRoomId = null;
@@ -420,21 +427,24 @@
             clearInterval(timerInterval);
         };
 
+        // 단어 제출
         document.getElementById('word-form').onsubmit = async (e) => {
             e.preventDefault();
             const word = wordInput.value.trim();
             if (!word || !currentRoomId || timeLeft <= 0) return;
+            
             if (usedWords.has(word)) { showError("이미 사용된 단어입니다!"); return; }
-            if (lastWord && lastWord !== "READY" && lastWord !== "😵") {
+            if (lastWord && lastWord !== "START") {
                 const lastChar = lastWord[lastWord.length - 1];
-                if (word[0] !== lastChar) { showError(`'${lastChar}'(으)로 시작하는 단어를 입력하세요!`); return; }
+                if (word[0] !== lastChar) { showError(`'${lastChar}'(으)로 시작해야 합니다!`); return; }
             }
+            
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history'), {
                     word, userId: currentUser.uid, userName: currentUser.displayName, createdAt: serverTimestamp()
                 });
                 wordInput.value = ''; hideError();
-            } catch (err) { showError("전송 오류 발생"); }
+            } catch (err) { showError("전송 실패"); }
         };
 
         const openModal = () => createModal.classList.remove('hidden');
