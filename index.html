@@ -185,7 +185,7 @@
                 showNotice(`${name}님을 친구로 추가했습니다.`, false);
             }
             localStorage.setItem('sc_friends', JSON.stringify(STATE.friends));
-            renderOnlineList(); // UI 갱신
+            renderOnlineList(); 
         };
 
         // --- 메시지 삭제 ---
@@ -269,14 +269,11 @@
         const renderOnlineList = () => {
             const list = document.getElementById('online-list');
             list.innerHTML = '';
-            
-            // 친구 먼저 정렬
             const sorted = [...currentOnlineData].sort((a, b) => {
                 const aFriend = STATE.friends.includes(a.id);
                 const bFriend = STATE.friends.includes(b.id);
                 return bFriend - aFriend;
             });
-
             sorted.forEach(d => {
                 const s = d.data;
                 const isFriend = STATE.friends.includes(d.id);
@@ -300,16 +297,13 @@
             STATE.roomId = id;
             document.getElementById('display-room-title').textContent = title;
             toggleScreen('game-screen');
-
             const statusRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id, 'status', STATE.user.uid);
             await setDoc(statusRef, { name: STATE.nickname, isTyping: false, lastActive: serverTimestamp(), photo: STATE.user.photoURL });
-
             unsubStatus = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', id, 'status'), (snap) => {
                 currentOnlineData = snap.docs.map(d => ({ id: d.id, data: d.data() }));
                 renderOnlineList();
                 document.getElementById('online-count').textContent = snap.size;
                 document.getElementById('mobile-member-count').textContent = `멤버 ${snap.size}명 접속 중`;
-                
                 const typing = currentOnlineData.filter(u => u.data.isTyping && u.id !== STATE.user.uid).map(u => u.data.name);
                 const ti = document.getElementById('typing-indicator');
                 if(typing.length > 0) {
@@ -317,7 +311,6 @@
                     document.getElementById('typing-users').textContent = typing.join(', ');
                 } else ti.classList.add('hidden');
             });
-
             const qMsg = query(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', id, 'messages'), orderBy('createdAt', 'asc'));
             unsubMessages = onSnapshot(qMsg, (snap) => {
                 const container = document.getElementById('history-container');
@@ -325,22 +318,17 @@
                 snap.forEach(d => {
                     const m = d.data();
                     if(m.isDM && m.userId !== STATE.user.uid && m.dmTarget !== STATE.user.uid) return;
-
                     const isMe = m.userId === STATE.user.uid;
                     const div = document.createElement('div');
                     div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-fade group`;
-                    
                     let contentHTML = `<div class="message-bubble relative text-sm px-5 py-3 rounded-[24px] shadow-sm ${m.isDM ? 'border-2 border-amber-300 bg-amber-50' : isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white text-slate-800 rounded-tl-none border border-slate-100'}">`;
                     if(m.isDM) contentHTML += `<div class="text-[9px] font-black mb-1 opacity-60 italic">SECRET</div>`;
                     if(m.type === 'image') contentHTML += `<img src="${m.fileData}" class="max-w-full rounded-xl mb-2 cursor-pointer shadow-md" onclick="window.open('${m.fileData}')">`;
-                    if(m.text) contentHTML += `<div class="leading-relaxed font-medium">${m.text}</div>`;
-                    
-                    // 삭제 버튼 (본인 것만)
+                    if(m.text) contentHTML += `<div class="leading-relaxed font-medium whitespace-pre-wrap">${m.text}</div>`;
                     if(isMe) {
                         contentHTML += `<button onclick="deleteMsg('${d.id}')" class="absolute -left-8 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>`;
                     }
                     contentHTML += `</div>`;
-
                     div.innerHTML = `<span class="text-[10px] font-bold text-slate-400 mb-1 px-2">${m.userName}</span>${contentHTML}`;
                     container.appendChild(div);
                 });
@@ -348,8 +336,29 @@
             });
         };
 
+        // --- 전송 로직 분리 ---
+        const sendMessage = async () => {
+            const text = input.value.trim();
+            if(!text) return;
+            const msgData = { text, userId: STATE.user.uid, userName: STATE.nickname, createdAt: serverTimestamp(), type: 'text' };
+            if(STATE.dmTarget) { msgData.isDM = true; msgData.dmTarget = STATE.dmTarget.uid; msgData.dmTargetName = STATE.dmTarget.name; }
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.roomId, 'messages'), msgData);
+            input.value = ''; input.style.height = 'auto';
+            clearDM();
+        };
+
         // --- 이벤트 핸들러 ---
         const input = document.getElementById('chat-input');
+        
+        // 엔터 키 처리
+        input.addEventListener('keydown', (e) => {
+            // 엔터 키이고, Shift 키가 눌리지 않았을 때 (모바일 한글 조합 중 방지 포함)
+            if (e.key === 'Enter' && !e.shiftKey && e.keyCode !== 229) {
+                e.preventDefault(); // 줄바꿈 방지
+                sendMessage();
+            }
+        });
+
         input.oninput = () => {
             input.style.height = 'auto';
             input.style.height = input.scrollHeight + 'px';
@@ -359,15 +368,9 @@
             STATE.typingTimeout = setTimeout(() => updateDoc(ref, { isTyping: false }), 2000);
         };
 
-        document.getElementById('chat-form').onsubmit = async (e) => {
+        document.getElementById('chat-form').onsubmit = (e) => {
             e.preventDefault();
-            const text = input.value.trim();
-            if(!text) return;
-            const msgData = { text, userId: STATE.user.uid, userName: STATE.nickname, createdAt: serverTimestamp(), type: 'text' };
-            if(STATE.dmTarget) { msgData.isDM = true; msgData.dmTarget = STATE.dmTarget.uid; msgData.dmTargetName = STATE.dmTarget.name; }
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.roomId, 'messages'), msgData);
-            input.value = ''; input.style.height = 'auto';
-            clearDM();
+            sendMessage();
         };
 
         document.getElementById('file-input').onchange = (e) => {
