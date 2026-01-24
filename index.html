@@ -3,11 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 끝말잇기 광장</title>
+    <title>실시간 끝말잇기 광장 (Google 로그인)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-webapp.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-webapp.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-webapp.js"></script>
     <style>
         .chat-container::-webkit-scrollbar { width: 6px; }
         .chat-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
@@ -15,35 +12,73 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade { animation: fadeIn 0.3s ease-out forwards; }
         .timer-bar { transition: width 0.1s linear; }
+        .google-btn { box-shadow: 0 2px 4px 0 rgba(0,0,0,0.25); transition: background-color .218s, border-color .218s, box-shadow .218s; }
+        .google-btn:hover { box-shadow: 0 0 3px 3px rgba(66,133,244,0.3); }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
 
+    <!-- 로그인 화면 -->
+    <div id="auth-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-10 text-center animate-fade">
+        <div class="mb-8">
+            <h1 class="text-4xl font-black text-indigo-600 italic">Word Relay</h1>
+            <p class="text-gray-400 mt-2 font-medium">실시간 단어 대결</p>
+        </div>
+        
+        <div class="space-y-6">
+            <div class="p-6 bg-indigo-50 rounded-2xl text-sm text-indigo-700 leading-relaxed">
+                계정 정보를 안전하게 보호하기 위해<br><strong>구글 로그인</strong>이 필요합니다.
+            </div>
+            
+            <button id="btn-google-login" class="google-btn w-full flex items-center justify-center gap-4 bg-white border border-gray-100 py-4 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6" alt="Google Logo">
+                Google 계정으로 시작하기
+            </button>
+        </div>
+        
+        <p class="text-[11px] text-gray-400 mt-10">
+            알려주신 Client ID 기반으로 연동된 안전한 로그인 방식입니다.
+        </p>
+    </div>
+
     <!-- 로비 화면 -->
-    <div id="lobby-screen" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 animate-fade">
-        <div class="flex justify-between items-center mb-8">
+    <div id="lobby-screen" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 animate-fade hidden">
+        <div class="flex justify-between items-start mb-8">
             <div>
                 <h1 class="text-3xl font-black text-indigo-600 italic">Word Relay</h1>
-                <p class="text-gray-500">방을 선택하여 실시간 대결에 참여하세요.</p>
+                <p class="text-gray-500">대결에 참여하거나 새로운 방을 만드세요.</p>
             </div>
-            <button id="btn-open-create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all">방 만들기</button>
+            <div class="flex flex-col items-end gap-3">
+                <div class="flex items-center gap-3 bg-slate-50 p-2 pl-4 rounded-2xl border border-slate-100 shadow-sm">
+                    <div class="text-right">
+                        <p id="user-name" class="font-bold text-sm text-gray-800">플레이어</p>
+                        <button id="btn-logout" class="text-[10px] font-bold text-red-400 hover:text-red-600 transition-colors uppercase">Sign Out</button>
+                    </div>
+                    <img id="user-photo" src="" class="w-10 h-10 rounded-full border-2 border-indigo-200 bg-gray-100 shadow-inner">
+                </div>
+                <button id="btn-open-create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all w-full active:scale-95">방 만들기</button>
+            </div>
         </div>
         
         <div id="room-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px] overflow-y-auto pr-2">
             <div class="col-span-full flex flex-col items-center justify-center text-gray-400 h-full">
-                <p>방 목록을 불러오는 중...</p>
+                <div class="animate-pulse mb-2">● ● ●</div>
+                <p>로비 정보를 동기화 중...</p>
             </div>
         </div>
     </div>
 
     <!-- 방 만들기 모달 -->
-    <div id="create-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50 p-4">
+    <div id="create-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm">
         <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-fade">
-            <h2 class="text-2xl font-bold mb-6 text-gray-800">새 게임 설정</h2>
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
+                <span class="w-2 h-8 bg-indigo-600 rounded-full"></span>
+                새 게임 설정
+            </h2>
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-600 mb-1">방 제목</label>
-                    <input type="text" id="room-title-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="매너 게임 합시다!">
+                    <input type="text" id="room-title-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="한판 붙자!">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -57,72 +92,61 @@
                     <div>
                         <label class="block text-sm font-semibold text-gray-600 mb-1">시간 제한</label>
                         <select id="time-limit-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="5">5초 (매우 빠름)</option>
-                            <option value="10" selected>10초 (보통)</option>
-                            <option value="20">20초 (여유)</option>
+                            <option value="5">5초</option>
+                            <option value="10" selected>10초</option>
+                            <option value="20">20초</option>
                         </select>
                     </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-gray-600 mb-1">특별 룰</label>
-                    <select id="rule-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                        <option value="none">기본 (자유)</option>
-                        <option value="exact3">3글자 고정</option>
-                        <option value="min2">2글자 이상</option>
-                    </select>
                 </div>
             </div>
             <div class="flex gap-3 mt-8">
                 <button id="btn-close-modal" class="flex-1 px-4 py-3 rounded-xl bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 transition-all">취소</button>
-                <button id="btn-create-confirm" class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 font-bold text-white hover:bg-indigo-700 shadow-lg transition-all">생성하기</button>
+                <button id="btn-create-confirm" class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 font-bold text-white hover:bg-indigo-700 shadow-lg transition-all active:scale-95">생성하기</button>
             </div>
         </div>
     </div>
 
     <!-- 게임 화면 -->
-    <div id="game-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[700px] hidden animate-fade relative">
-        <!-- 타이머 프로그레스 바 -->
-        <div class="absolute top-0 left-0 w-full h-1 bg-gray-100 z-10">
-            <div id="timer-progress" class="timer-bar h-full bg-red-500 w-full"></div>
+    <div id="game-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[750px] hidden animate-fade relative">
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-gray-100 z-10">
+            <div id="timer-progress" class="timer-bar h-full bg-indigo-400 w-full"></div>
         </div>
 
-        <div class="bg-indigo-600 pt-5 pb-4 px-4 text-white">
+        <div class="bg-indigo-600 pt-6 pb-4 px-4 text-white">
             <div class="flex justify-between items-center">
-                <button id="btn-exit" class="text-indigo-200 hover:text-white transition-colors">
+                <button id="btn-exit" class="text-indigo-200 hover:text-white transition-colors p-1">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                 </button>
                 <div class="text-center">
-                    <h2 id="display-room-title" class="font-bold text-sm truncate w-40 text-center">Room Name</h2>
-                    <p id="display-room-info" class="text-[10px] opacity-80 uppercase tracking-widest mt-0.5">RULE: NONE • 0/4 PLAYERS</p>
+                    <h2 id="display-room-title" class="font-bold text-sm truncate w-40">Room Name</h2>
+                    <p id="display-room-info" class="text-[10px] opacity-70 uppercase tracking-widest mt-0.5 font-bold">0/4 PLAYERS</p>
                 </div>
-                <div id="room-timer-text" class="font-mono text-xs bg-black/20 px-2 py-1 rounded">10.0s</div>
+                <div id="room-timer-text" class="font-mono text-xs bg-black/30 px-2 py-1 rounded-lg border border-white/20">10.0s</div>
             </div>
         </div>
 
-        <div class="p-6 bg-indigo-50 text-center relative border-b border-indigo-100">
-            <div class="text-xs font-bold text-indigo-400 mb-1">CURRENT WORD</div>
-            <div id="current-word" class="text-4xl font-black text-indigo-900 drop-shadow-sm italic">...</div>
+        <div class="p-8 bg-indigo-50 text-center relative border-b border-indigo-100">
+            <div class="text-[10px] font-black text-indigo-300 mb-2 uppercase tracking-tighter">Current Last Word</div>
+            <div id="current-word" class="text-5xl font-black text-indigo-900 drop-shadow-sm italic">...</div>
         </div>
 
-        <div id="history-container" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 bg-white">
-            <!-- Words will appear here -->
-        </div>
+        <div id="history-container" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 bg-white"></div>
 
-        <div class="p-4 bg-white border-t border-gray-100">
+        <div class="p-4 bg-gray-50 border-t border-gray-100">
             <form id="word-form" class="flex gap-2">
-                <input type="text" id="word-input" placeholder="단어를 입력하세요..." class="flex-1 px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner">
+                <input type="text" id="word-input" autocomplete="off" placeholder="단어를 입력하세요..." class="flex-1 px-5 py-4 rounded-2xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm">
                 <button type="submit" class="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg active:scale-95 transition-all">전송</button>
             </form>
-            <p id="error-msg" class="text-red-500 text-xs mt-3 font-medium text-center hidden"></p>
+            <p id="error-msg" class="text-red-500 text-[11px] mt-3 font-bold text-center hidden animate-bounce"></p>
         </div>
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc, query } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // 사용자님의 실제 Firebase 설정값 적용
+        // 기존 설정을 유지합니다. (알려주신 Client ID는 구글 로그인 설정 시 사용됨)
         const firebaseConfig = {
             apiKey: "AIzaSyB7NGfWI8I_qjsA3sBJXCPq8g45qXzPipA",
             authDomain: "wordliner1234.firebaseapp.com",
@@ -133,10 +157,11 @@
             measurementId: "G-C6QD2SJZ4D"
         };
 
-        const appId = 'word-relay-matching'; // Firestore 경로 구분을 위한 ID
+        const appId = 'word-relay-matching';
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
 
         let currentUser = null;
         let currentRoomId = null;
@@ -145,12 +170,11 @@
         let usedWords = new Set();
         let unsubscribeRoom = null;
         let unsubscribeHistory = null;
-        
-        // Timer Variables
         let timerInterval = null;
         let timeLeft = 0;
 
-        // UI Elements
+        // UI 엘리먼트
+        const authScreen = document.getElementById('auth-screen');
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
         const createModal = document.getElementById('create-modal');
@@ -161,289 +185,277 @@
         const timerProgressBar = document.getElementById('timer-progress');
         const timerText = document.getElementById('room-timer-text');
 
-        // Auth
-        const initAuth = async () => {
-            try {
-                await signInAnonymously(auth);
-            } catch (error) {
-                console.error("Auth Error:", error);
-            }
-        };
-
+        // 인증 상태 모니터링
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
+                document.getElementById('user-name').innerText = user.displayName;
+                document.getElementById('user-photo').src = user.photoURL;
+                authScreen.classList.add('hidden');
+                lobbyScreen.classList.remove('hidden');
                 listenToRooms();
+            } else {
+                currentUser = null;
+                authScreen.classList.remove('hidden');
+                lobbyScreen.classList.add('hidden');
+                gameScreen.classList.add('hidden');
+                stopAllGameListeners();
             }
         });
 
-        // Lobby Logic
+        // 로그인 기능
+        document.getElementById('btn-google-login').onclick = async () => {
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error("Login Failed:", error);
+                alert("로그인 중 오류가 발생했습니다: " + error.message);
+            }
+        };
+
+        // 로그아웃 기능
+        document.getElementById('btn-logout').onclick = () => {
+            if (confirm("로그아웃 하시겠습니까?")) {
+                signOut(auth);
+            }
+        };
+
         const listenToRooms = () => {
-            // RULE 1: 정해진 경로 구조 사용
             const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms');
             onSnapshot(roomsRef, (snapshot) => {
                 roomList.innerHTML = '';
                 const rooms = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 
                 if (rooms.length === 0) {
-                    roomList.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center text-gray-400 h-full"><p>현재 열린 방이 없습니다.</p></div>';
+                    roomList.innerHTML = `
+                        <div class="col-span-full flex flex-col items-center justify-center text-gray-300 h-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            <p class="font-bold">진행 중인 게임이 없습니다.</p>
+                        </div>`;
                     return;
                 }
 
                 rooms.forEach(room => {
                     const card = document.createElement('div');
-                    card.className = "p-6 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group shadow-sm animate-fade";
+                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group shadow-sm animate-fade";
                     card.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
+                        <div class="flex justify-between items-start mb-3">
                             <h3 class="font-bold text-gray-800 group-hover:text-indigo-600 transition-colors truncate w-32">${room.title}</h3>
-                            <span class="text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-bold">${room.playerCount || 0}/${room.maxPlayers}</span>
+                            <span class="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-black uppercase">${room.playerCount || 0}/${room.maxPlayers} Players</span>
                         </div>
-                        <div class="flex flex-wrap gap-1 mb-4">
-                            <span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase font-bold">⏱ ${room.timeLimit || 10}s</span>
-                            <span class="text-[9px] bg-indigo-50 text-indigo-400 px-1.5 py-0.5 rounded uppercase font-bold">${room.rule === 'exact3' ? '3글자' : (room.rule === 'min2' ? '2글자+' : '기본')}</span>
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-md font-bold uppercase">⏱ ${room.timeLimit || 10}s</span>
+                            <span class="text-[10px] text-gray-400 truncate">Host: ${room.hostName || 'Unknown'}</span>
                         </div>
-                        <button class="w-full py-2 bg-white border border-indigo-200 rounded-xl text-indigo-600 font-bold group-hover:bg-indigo-600 group-hover:text-white transition-all">참여하기</button>
+                        <button class="w-full py-2.5 bg-white border border-indigo-200 rounded-xl text-indigo-600 font-black text-xs group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">Join Game</button>
                     `;
                     card.onclick = () => joinRoom(room.id);
                     roomList.appendChild(card);
                 });
-            }, (err) => {
-                console.error("Firestore Error:", err);
-            });
+            }, (err) => console.error("Room Sync Error:", err));
         };
 
-        // Room Actions
         const createRoom = async () => {
-            const title = document.getElementById('room-title-input').value.trim() || "즐거운 게임";
+            if (!currentUser) return;
+            const title = document.getElementById('room-title-input').value.trim() || `${currentUser.displayName}의 방`;
             const maxPlayers = parseInt(document.getElementById('max-players-input').value);
             const timeLimit = parseInt(document.getElementById('time-limit-input').value);
-            const rule = document.getElementById('rule-input').value;
 
             try {
                 const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms');
                 const newRoom = await addDoc(roomsRef, {
-                    title,
-                    maxPlayers,
-                    timeLimit,
-                    rule,
+                    title, maxPlayers, timeLimit,
                     hostId: currentUser.uid,
+                    hostName: currentUser.displayName,
                     playerCount: 1,
                     players: [currentUser.uid],
-                    createdAt: serverTimestamp(),
-                    status: 'waiting'
+                    createdAt: serverTimestamp()
                 });
                 joinRoom(newRoom.id);
                 closeModal();
             } catch (err) {
-                console.error(err);
+                console.error("Room Creation Failed:", err);
+                alert("방을 생성할 수 없습니다. Firestore 권한을 확인하세요.");
             }
         };
 
         const joinRoom = async (roomId) => {
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
-            const roomSnap = await getDoc(roomRef);
-            
-            if (!roomSnap.exists()) return;
-            const data = roomSnap.data();
-
-            if (data.playerCount >= data.maxPlayers && !data.players.includes(currentUser.uid)) {
-                alert("방이 가득 찼습니다.");
-                return;
-            }
-
-            if (!data.players.includes(currentUser.uid)) {
-                await updateDoc(roomRef, {
-                    players: [...data.players, currentUser.uid],
-                    playerCount: data.playerCount + 1
-                });
-            }
-
-            currentRoomId = roomId;
-            currentRoomData = data;
-            showGameScreen();
-            listenToRoomUpdates();
-            listenToGameHistory();
-        };
-
-        const exitRoom = async () => {
-            if (!currentRoomId) return;
-            
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            const roomSnap = await getDoc(roomRef);
-            
-            if (roomSnap.exists()) {
+            try {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+                const roomSnap = await getDoc(roomRef);
+                if (!roomSnap.exists()) return;
                 const data = roomSnap.data();
-                const newPlayers = data.players.filter(p => p !== currentUser.uid);
-                
-                if (newPlayers.length === 0) {
-                    await deleteDoc(roomRef);
-                } else {
+
+                if (!data.players.includes(currentUser.uid)) {
+                    if (data.playerCount >= data.maxPlayers) {
+                        alert("방 인원이 초과되었습니다."); return;
+                    }
                     await updateDoc(roomRef, {
-                        players: newPlayers,
-                        playerCount: newPlayers.length,
-                        hostId: data.hostId === currentUser.uid ? newPlayers[0] : data.hostId
+                        players: [...data.players, currentUser.uid],
+                        playerCount: data.playerCount + 1
                     });
                 }
-            }
 
-            stopListeners();
-            currentRoomId = null;
-            clearInterval(timerInterval);
-            showLobbyScreen();
-        };
-
-        // Timer Logic
-        const resetTimer = () => {
-            clearInterval(timerInterval);
-            if (!currentRoomData) return;
-            
-            const limit = currentRoomData.timeLimit || 10;
-            timeLeft = limit;
-            
-            timerInterval = setInterval(() => {
-                timeLeft -= 0.1;
-                if (timeLeft <= 0) {
-                    timeLeft = 0;
-                    clearInterval(timerInterval);
-                    handleTimeOut();
-                }
-                updateTimerUI(limit);
-            }, 100);
-        };
-
-        const updateTimerUI = (limit) => {
-            const percentage = (timeLeft / limit) * 100;
-            timerProgressBar.style.width = `${percentage}%`;
-            timerText.innerText = `${timeLeft.toFixed(1)}s`;
-            
-            if (percentage < 30) {
-                timerProgressBar.classList.replace('bg-indigo-400', 'bg-red-500');
-            } else {
-                timerProgressBar.classList.replace('bg-red-500', 'bg-indigo-400');
-                if (!timerProgressBar.classList.contains('bg-indigo-400')) {
-                    timerProgressBar.classList.add('bg-indigo-400');
-                }
+                currentRoomId = roomId;
+                currentRoomData = data;
+                lobbyScreen.classList.add('hidden');
+                gameScreen.classList.remove('hidden');
+                listenToRoomUpdates();
+                listenToGameHistory();
+                hideError();
+            } catch (err) {
+                console.error("Join Error:", err);
             }
         };
 
-        const handleTimeOut = () => {
-            showError("시간이 초과되었습니다! 아무 단어나 입력하여 다시 시작하세요.");
-            currentWordDisplay.innerText = "TIME OUT";
-            lastWord = "";
-        };
-
-        // Game Listeners
         const listenToRoomUpdates = () => {
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
             unsubscribeRoom = onSnapshot(roomRef, (snap) => {
-                if (!snap.exists()) {
-                    exitRoom();
-                    return;
-                }
+                if (!snap.exists()) { exitRoom(); return; }
                 currentRoomData = snap.data();
                 document.getElementById('display-room-title').innerText = currentRoomData.title;
-                document.getElementById('display-room-info').innerText = `RULE: ${currentRoomData.rule} • ${currentRoomData.playerCount}/${currentRoomData.maxPlayers} PLAYERS`;
+                document.getElementById('display-room-info').innerText = `${currentRoomData.playerCount}/${currentRoomData.maxPlayers} PLAYERS`;
             });
         };
 
         const listenToGameHistory = () => {
-            // RULE 1: 컬렉션 경로 구조 준수
             const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history');
-            unsubscribeHistory = onSnapshot(historyRef, (snap) => {
-                const logs = snap.docs.map(d => d.data());
-                // RULE 2: 클라이언트 측 정렬
-                logs.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+            unsubscribeHistory = onSnapshot(historyRef, (snapshot) => {
+                const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                logs.sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
                 
                 usedWords = new Set(logs.map(log => log.word));
-                updateGameUI(logs);
+                historyContainer.innerHTML = '';
+                
+                if (logs.length === 0) {
+                    currentWordDisplay.innerText = "READY"; 
+                    lastWord = "";
+                } else {
+                    logs.forEach(log => {
+                        const isMe = log.userId === currentUser.uid;
+                        const div = document.createElement('div');
+                        div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade`;
+                        div.innerHTML = `
+                            <div class="max-w-[85%]">
+                                <div class="flex items-center gap-1.5 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
+                                    <span class="text-[9px] text-gray-400 font-black uppercase tracking-tighter">${log.userName || 'Unknown'}</span>
+                                </div>
+                                <div class="px-5 py-3 rounded-2xl shadow-sm font-bold text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'}">
+                                    ${log.word}
+                                </div>
+                            </div>
+                        `;
+                        historyContainer.appendChild(div);
+                    });
+                    const lastLog = logs[logs.length - 1];
+                    lastWord = lastLog.word;
+                    currentWordDisplay.innerText = lastWord;
+                }
+                historyContainer.scrollTop = historyContainer.scrollHeight;
                 resetTimer();
-            }, (err) => console.error(err));
-        };
-
-        const updateGameUI = (logs) => {
-            historyContainer.innerHTML = '';
-            if (logs.length === 0) {
-                currentWordDisplay.innerText = "START!";
-                lastWord = "";
-                return;
-            }
-
-            logs.forEach(log => {
-                const isMe = log.userId === currentUser.uid;
-                const div = document.createElement('div');
-                div.className = `flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade`;
-                div.innerHTML = `
-                    <div class="max-w-[80%]">
-                        <div class="px-5 py-3 rounded-2xl shadow-sm font-medium ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-gray-100 text-gray-800 rounded-tl-none'}">
-                            ${log.word}
-                        </div>
-                    </div>
-                `;
-                historyContainer.appendChild(div);
             });
-            
-            lastWord = logs[logs.length - 1].word;
-            currentWordDisplay.innerText = lastWord;
-            historyContainer.scrollTop = historyContainer.scrollHeight;
         };
 
-        // Form Submission
-        document.getElementById('word-form').addEventListener('submit', async (e) => {
+        const resetTimer = () => {
+            clearInterval(timerInterval);
+            if (!currentRoomData) return;
+            const limit = currentRoomData.timeLimit || 10;
+            timeLeft = limit;
+            timerInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                if (timeLeft <= 0) {
+                    timeLeft = 0; clearInterval(timerInterval);
+                    showError("TIME OUT! GAME OVER");
+                    currentWordDisplay.innerText = "😵";
+                    lastWord = "";
+                }
+                const percentage = (timeLeft / limit) * 100;
+                timerProgressBar.style.width = `${percentage}%`;
+                timerText.innerText = `${timeLeft.toFixed(1)}s`;
+                timerProgressBar.className = `timer-bar h-full ${percentage < 30 ? 'bg-red-500' : 'bg-indigo-400'}`;
+            }, 100);
+        };
+
+        const exitRoom = async () => {
+            if (currentRoomId) {
+                try {
+                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+                    const roomSnap = await getDoc(roomRef);
+                    if (roomSnap.exists()) {
+                        const data = roomSnap.data();
+                        const newPlayers = data.players.filter(p => p !== currentUser.uid);
+                        if (newPlayers.length === 0) {
+                            await deleteDoc(roomRef);
+                        } else {
+                            await updateDoc(roomRef, { 
+                                players: newPlayers, 
+                                playerCount: newPlayers.length 
+                            });
+                        }
+                    }
+                } catch (err) { console.error("Exit Error:", err); }
+            }
+            stopAllGameListeners();
+            currentRoomId = null;
+            gameScreen.classList.add('hidden');
+            lobbyScreen.classList.remove('hidden');
+        };
+
+        const stopAllGameListeners = () => {
+            if (unsubscribeRoom) unsubscribeRoom();
+            if (unsubscribeHistory) unsubscribeHistory();
+            clearInterval(timerInterval);
+        };
+
+        document.getElementById('word-form').onsubmit = async (e) => {
             e.preventDefault();
             const word = wordInput.value.trim();
-            if (!word) return;
-
-            if (usedWords.has(word)) {
-                showError("이미 사용된 단어입니다!");
-                return;
-            }
-
-            if (currentRoomData.rule === 'exact3' && word.length !== 3) {
-                showError("3글자 단어만 가능합니다!");
-                return;
-            }
-            if ((currentRoomData.rule === 'min2' || currentRoomData.rule === 'none') && word.length < 2) {
-                showError("2글자 이상 입력하세요.");
-                return;
-            }
-
-            if (lastWord && lastWord !== "TIME OUT" && lastWord !== "START!") {
-                if (lastWord[lastWord.length - 1] !== word[0]) {
-                    showError(`'${lastWord[lastWord.length - 1]}'로 시작해야 합니다!`);
+            if (!word || !currentRoomId || timeLeft <= 0) return;
+            
+            // 검증 로직
+            if (usedWords.has(word)) { showError("이미 사용된 단어입니다!"); return; }
+            if (lastWord && lastWord !== "READY" && lastWord !== "😵") {
+                const lastChar = lastWord[lastWord.length - 1];
+                if (word[0] !== lastChar) {
+                    showError(`'${lastChar}'(으)로 시작하는 단어를 입력하세요!`);
                     return;
                 }
             }
-
+            
             try {
-                const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history');
-                await addDoc(historyRef, {
-                    word,
-                    userId: currentUser.uid,
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history'), {
+                    word, 
+                    userId: currentUser.uid, 
+                    userName: currentUser.displayName,
                     createdAt: serverTimestamp()
                 });
-                wordInput.value = '';
+                wordInput.value = ''; 
                 hideError();
-            } catch (err) {
-                showError("전송 중 오류가 발생했습니다.");
+            } catch (err) { 
+                console.error(err); 
+                showError("전송 오류가 발생했습니다.");
             }
-        });
+        };
 
-        // UI Helpers
-        const showLobbyScreen = () => { lobbyScreen.classList.remove('hidden'); gameScreen.classList.add('hidden'); };
-        const showGameScreen = () => { lobbyScreen.classList.add('hidden'); gameScreen.classList.remove('hidden'); };
         const openModal = () => createModal.classList.remove('hidden');
-        const closeModal = () => createModal.classList.add('hidden');
-        const showError = (msg) => { const e = document.getElementById('error-msg'); e.innerText = msg; e.classList.remove('hidden'); };
+        const closeModal = () => {
+            createModal.classList.add('hidden');
+            document.getElementById('room-title-input').value = '';
+        };
+        const showError = (msg) => { 
+            const e = document.getElementById('error-msg'); 
+            e.innerText = msg; 
+            e.classList.remove('hidden'); 
+            setTimeout(() => e.classList.add('hidden'), 3000);
+        };
         const hideError = () => document.getElementById('error-msg').classList.add('hidden');
-        const stopListeners = () => { if (unsubscribeRoom) unsubscribeRoom(); if (unsubscribeHistory) unsubscribeHistory(); };
 
-        // Events
         document.getElementById('btn-open-create').onclick = openModal;
         document.getElementById('btn-close-modal').onclick = closeModal;
         document.getElementById('btn-create-confirm').onclick = createRoom;
         document.getElementById('btn-exit').onclick = exitRoom;
-
-        initAuth();
     </script>
 </body>
 </html>
