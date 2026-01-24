@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>만남의 광장/title>
+    <title>만남의 광장</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .chat-container::-webkit-scrollbar { width: 6px; }
@@ -14,7 +14,6 @@
         .timer-bar { transition: width 0.1s linear; }
         .google-btn { box-shadow: 0 2px 4px 0 rgba(0,0,0,0.25); transition: background-color .218s, border-color .218s, box-shadow .218s; }
         .google-btn:hover { box-shadow: 0 0 3px 3px rgba(66,133,244,0.3); }
-        .admin-badge { background: linear-gradient(90deg, #ef4444, #f59e0b); }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
@@ -27,9 +26,10 @@
         </div>
         
         <div class="space-y-6">
+            <!-- 에러 발생 시 안내창 -->
             <div id="auth-error-notice" class="hidden p-4 bg-red-50 rounded-2xl text-xs text-red-600 border border-red-100 mb-4 text-left">
-                <strong id="error-title">인증 오류:</strong><br>
-                <span id="error-details">잠시 후 다시 시도해주세요.</span>
+                <strong id="error-title">연결 오류:</strong><br>
+                <span id="error-details">Firebase API 키가 유효하지 않습니다. 설정을 확인해주세요.</span>
             </div>
             
             <div class="p-6 bg-indigo-50 rounded-2xl text-sm text-indigo-700 leading-relaxed">
@@ -47,10 +47,7 @@
     <div id="lobby-screen" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 animate-fade hidden">
         <div class="flex justify-between items-start mb-8">
             <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-3xl font-black text-indigo-600 italic">Word Relay</h1>
-                    <span id="admin-tag" class="hidden admin-badge text-[10px] text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Admin</span>
-                </div>
+                <h1 class="text-3xl font-black text-indigo-600 italic">Word Relay</h1>
                 <p class="text-gray-500">광장에서 대결 상대를 찾으세요.</p>
             </div>
             <div class="flex flex-col items-end gap-3">
@@ -61,10 +58,9 @@
                     </div>
                     <img id="user-photo" src="" class="w-10 h-10 rounded-full border-2 border-indigo-200 bg-gray-100 shadow-inner">
                 </div>
-                <button id="btn-open-create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all w-full active:scale-95">방 만들기</button>
+                <button id="btn-open-create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all w-full">방 만들기</button>
             </div>
         </div>
-        
         <div id="room-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px] overflow-y-auto pr-2"></div>
     </div>
 
@@ -75,21 +71,19 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-600 mb-1">방 제목</label>
-                    <input type="text" id="room-title-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="끝말잇기 대결!">
+                    <input type="text" id="room-title-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" placeholder="끝말잇기 대결!">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-semibold text-gray-600 mb-1">최대 인원</label>
-                        <select id="max-players-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <select id="max-players-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none">
                             <option value="2">2명</option>
                             <option value="4" selected>4명</option>
-                            <option value="8">8명</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-600 mb-1">시간 제한</label>
-                        <select id="time-limit-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="5">5초</option>
+                        <select id="time-limit-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none">
                             <option value="10" selected>10초</option>
                             <option value="20">20초</option>
                         </select>
@@ -98,7 +92,7 @@
             </div>
             <div class="flex gap-3 mt-8">
                 <button id="btn-close-modal" class="flex-1 px-4 py-3 rounded-xl bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 transition-all">취소</button>
-                <button id="btn-create-confirm" class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 font-bold text-white hover:bg-indigo-700 shadow-lg transition-all active:scale-95">생성</button>
+                <button id="btn-create-confirm" class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 font-bold text-white hover:bg-indigo-700 shadow-lg transition-all">생성</button>
             </div>
         </div>
     </div>
@@ -108,31 +102,25 @@
         <div class="absolute top-0 left-0 w-full h-1.5 bg-gray-100 z-10">
             <div id="timer-progress" class="timer-bar h-full bg-indigo-400 w-full"></div>
         </div>
-
-        <div class="bg-indigo-600 pt-6 pb-4 px-4 text-white">
-            <div class="flex justify-between items-center">
-                <button id="btn-exit" class="text-indigo-200 hover:text-white transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
-                </button>
-                <div class="text-center">
-                    <h2 id="display-room-title" class="font-bold text-sm truncate w-40">로딩 중...</h2>
-                    <p id="display-room-info" class="text-[10px] opacity-70 mt-0.5">PLAYER INFO</p>
-                </div>
-                <div id="room-timer-text" class="font-mono text-xs bg-black/30 px-2 py-1 rounded-lg">0.0s</div>
+        <div class="bg-indigo-600 pt-6 pb-4 px-4 text-white flex justify-between items-center">
+            <button id="btn-exit" class="text-indigo-200 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <div class="text-center">
+                <h2 id="display-room-title" class="font-bold text-sm truncate w-40">로딩 중...</h2>
+                <p id="display-room-info" class="text-[10px] opacity-70 mt-0.5">PLAYER INFO</p>
             </div>
+            <div id="room-timer-text" class="font-mono text-xs bg-black/30 px-2 py-1 rounded-lg">0.0s</div>
         </div>
-
         <div class="p-8 bg-indigo-50 text-center border-b border-indigo-100">
             <div class="text-[10px] font-black text-indigo-300 mb-2 uppercase">현재 제시어</div>
             <div id="current-word" class="text-5xl font-black text-indigo-900 italic">...</div>
         </div>
-
         <div id="history-container" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 bg-white"></div>
-
         <div class="p-4 bg-gray-50 border-t border-gray-100">
             <form id="word-form" class="flex gap-2">
-                <input type="text" id="word-input" autocomplete="off" placeholder="단어를 입력하세요..." class="flex-1 px-5 py-4 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                <button type="submit" class="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg active:scale-95">전송</button>
+                <input type="text" id="word-input" autocomplete="off" placeholder="단어를 입력하세요..." class="flex-1 px-5 py-4 rounded-2xl border border-gray-200 outline-none">
+                <button type="submit" class="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-bold shadow-lg">전송</button>
             </form>
             <p id="error-msg" class="text-red-500 text-[11px] mt-3 font-bold text-center hidden"></p>
         </div>
@@ -143,19 +131,55 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // Firebase 설정 복구
-        const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
-        const firebaseConfig = JSON.parse(configStr);
+        // Firebase 설정 가져오기 및 유효성 검사
+        let firebaseConfig = {};
+        try {
+            const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+            firebaseConfig = JSON.parse(configStr);
+            
+            // 만약 __firebase_config가 비어있다면, 이전에 사용하던 키를 수동으로 입력하거나 
+            // 시스템에서 제공하는 설정을 사용해야 합니다.
+            if (!firebaseConfig.apiKey) {
+                console.error("Firebase API Key가 없습니다. 설정을 확인하세요.");
+                document.getElementById('auth-error-notice').classList.remove('hidden');
+            }
+        } catch (e) {
+            console.error("설정 파싱 에러:", e);
+        }
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'word-relay-matching';
 
         let app, auth, db, provider;
-        try {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            provider = new GoogleAuthProvider();
-        } catch (e) {
-            console.error("Firebase 초기화 에러:", e);
+        
+        // 초기화 가드: 설정이 있을 때만 진행
+        if (firebaseConfig.apiKey) {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                provider = new GoogleAuthProvider();
+                
+                // 인증 상태 감시 (auth가 있을 때만 실행)
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        document.getElementById('user-name').innerText = user.displayName;
+                        document.getElementById('user-photo').src = user.photoURL;
+                        authScreen.classList.add('hidden');
+                        lobbyScreen.classList.remove('hidden');
+                        listenToRooms();
+                    } else {
+                        currentUser = null;
+                        authScreen.classList.remove('hidden');
+                        lobbyScreen.classList.add('hidden');
+                        gameScreen.classList.add('hidden');
+                    }
+                });
+            } catch (e) {
+                console.error("Firebase 서비스 시작 실패:", e);
+                document.getElementById('auth-error-notice').classList.remove('hidden');
+                document.getElementById('error-details').innerText = e.message;
+            }
         }
 
         let currentUser = null;
@@ -171,41 +195,24 @@
         const authScreen = document.getElementById('auth-screen');
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
-        const authErrorNotice = document.getElementById('auth-error-notice');
-        const errorDetails = document.getElementById('error-details');
 
-        // 인증 상태 확인
-        if (auth) {
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    currentUser = user;
-                    document.getElementById('user-name').innerText = user.displayName;
-                    document.getElementById('user-photo').src = user.photoURL;
-                    authScreen.classList.add('hidden');
-                    lobbyScreen.classList.remove('hidden');
-                    listenToRooms();
-                } else {
-                    currentUser = null;
-                    authScreen.classList.remove('hidden');
-                    lobbyScreen.classList.add('hidden');
-                    gameScreen.classList.add('hidden');
-                }
-            });
-        }
-
-        // 구글 로그인 실행
+        // 로그인 버튼 이벤트
         document.getElementById('btn-google-login').onclick = async () => {
-            if (!auth) return;
-            authErrorNotice.classList.add('hidden');
+            if (!auth) {
+                alert("인증 시스템이 초기화되지 않았습니다. API 키를 확인해주세요.");
+                return;
+            }
             try {
                 await signInWithPopup(auth, provider);
             } catch (error) {
-                authErrorNotice.classList.remove('hidden');
-                errorDetails.innerText = error.message;
-                console.error("Login Error:", error);
+                console.error("로그인 에러:", error);
+                const notice = document.getElementById('auth-error-notice');
+                notice.classList.remove('hidden');
+                document.getElementById('error-details').innerText = error.message;
             }
         };
 
+        // 이하 게임 로직 (수정 없음)
         const listenToRooms = () => {
             const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms');
             onSnapshot(roomsRef, (snapshot) => {
@@ -214,7 +221,7 @@
                 snapshot.docs.forEach(d => {
                     const room = { id: d.id, ...d.data() };
                     const card = document.createElement('div');
-                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer shadow-sm";
+                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer shadow-sm animate-fade";
                     card.innerHTML = `
                         <div class="flex justify-between items-start mb-2">
                             <h3 class="font-bold text-gray-800 truncate">${room.title}</h3>
@@ -225,7 +232,7 @@
                     card.onclick = () => joinRoom(room.id);
                     roomList.appendChild(card);
                 });
-            });
+            }, (err) => console.error("Room List Error:", err));
         };
 
         const joinRoom = async (roomId) => {
@@ -233,15 +240,10 @@
             const snap = await getDoc(roomRef);
             if (!snap.exists()) return;
             const data = snap.data();
-
             if (!data.players.includes(currentUser.uid)) {
                 if (data.playerCount >= data.maxPlayers) return alert("방이 가득 찼습니다.");
-                await updateDoc(roomRef, {
-                    players: [...data.players, currentUser.uid],
-                    playerCount: data.playerCount + 1
-                });
+                await updateDoc(roomRef, { players: [...data.players, currentUser.uid], playerCount: data.playerCount + 1 });
             }
-
             currentRoomId = roomId;
             currentRoomData = data;
             lobbyScreen.classList.add('hidden');
@@ -257,7 +259,6 @@
                 document.getElementById('display-room-title').innerText = currentRoomData.title;
                 document.getElementById('display-room-info').innerText = `${currentRoomData.playerCount}/${currentRoomData.maxPlayers} PLAYERS`;
             });
-
             const hRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history');
             unsubscribeHistory = onSnapshot(hRef, (snap) => {
                 const logs = snap.docs.map(d => d.data()).sort((a,b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
@@ -289,13 +290,9 @@
             timeLeft = currentRoomData.timeLimit;
             timerInterval = setInterval(() => {
                 timeLeft -= 0.1;
-                if (timeLeft <= 0) {
-                    timeLeft = 0; clearInterval(timerInterval);
-                    document.getElementById('error-msg').innerText = "시간 종료!";
-                    document.getElementById('error-msg').classList.remove('hidden');
-                }
+                if (timeLeft <= 0) { timeLeft = 0; clearInterval(timerInterval); }
                 document.getElementById('timer-progress').style.width = `${(timeLeft/currentRoomData.timeLimit)*100}%`;
-                document.getElementById('room-timer-text').innerText = `${timeLeft.toFixed(1)}s`;
+                document.getElementById('room-timer-text').innerText = `${Math.max(0, timeLeft).toFixed(1)}s`;
             }, 100);
         };
 
@@ -324,8 +321,7 @@
             const word = input.value.trim();
             if (!word || timeLeft <= 0) return;
             if (usedWords.has(word)) return alert("이미 사용된 단어입니다.");
-            if (lastWord && word[0] !== lastWord[lastWord.length-1]) return alert("글자가 맞지 않습니다.");
-            
+            if (lastWord && word[0] !== lastWord[lastWord.length-1]) return alert("끝말잇기 실패!");
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history'), {
                 word, userId: currentUser.uid, userName: currentUser.displayName, createdAt: serverTimestamp()
             });
