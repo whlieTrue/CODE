@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>끝말잇기 광장 - 보안 강화 버전</title>
+    <!-- [보안] CSP 설정 -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.gstatic.com https://*.googleapis.com https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://*.gstatic.com https://*.googleapis.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https://*.googleusercontent.com https://www.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com;">
+    
+    <title>시큐어 챗 광장 - 보안 강화 버전</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .chat-container::-webkit-scrollbar { width: 6px; }
@@ -11,65 +14,36 @@
         .hidden { display: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade { animation: fadeIn 0.3s ease-out forwards; }
-        .timer-bar { transition: width 0.1s linear; }
         .secure-badge { background: linear-gradient(90deg, #059669, #10b981); }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
 
-    <!-- 보안 강화 배지 -->
-    <div class="fixed top-4 left-4 z-50">
-        <div class="secure-badge text-white px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-lg border border-emerald-400">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-            </svg>
-            보안 강화 버전 v1.0
-        </div>
-    </div>
-
-    <!-- 알림 컨테이너 (Toast) -->
     <div id="toast-container" class="fixed top-10 right-4 z-[100] space-y-2"></div>
 
     <!-- 로그인 화면 -->
     <div id="auth-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-10 text-center animate-fade">
-        <div class="mb-8">
-            <h1 class="text-4xl font-black text-indigo-600 italic">Word Relay</h1>
-            <p class="text-gray-400 mt-2 font-medium">안전한 실시간 단어 대결</p>
-        </div>
-        
-        <div class="space-y-6">
-            <div id="auth-error-notice" class="hidden p-4 bg-red-50 rounded-2xl text-xs text-red-600 border border-red-100 mb-4 text-left">
-                <strong id="error-title">주의:</strong><br>
-                <span id="error-details"></span>
-            </div>
-            
-            <div class="p-6 bg-indigo-50 rounded-2xl text-sm text-indigo-700 leading-relaxed">
-                비정상적인 접근 및 매크로 사용 시<br><strong>계정이 제한</strong>될 수 있습니다.
-            </div>
-            
-            <button id="btn-google-login" class="w-full flex items-center justify-center gap-4 bg-white border border-gray-100 py-4 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6" alt="Google Logo">
-                Google 계정으로 안전하게 시작
-            </button>
-        </div>
+        <h1 class="text-4xl font-black text-indigo-600 italic mb-2">Secure Chat</h1>
+        <p class="text-gray-400 mb-8 font-medium">실시간 보안 채팅 플랫폼</p>
+        <button id="btn-google-login" class="w-full flex items-center justify-center gap-4 bg-white border border-gray-100 py-4 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6" alt="Google">
+            Google 계정으로 안전하게 로그인
+        </button>
     </div>
 
     <!-- 로비 화면 -->
     <div id="lobby-screen" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 animate-fade hidden">
         <div class="flex justify-between items-start mb-8">
             <div>
-                <h1 class="text-3xl font-black text-indigo-600 italic">Word Relay</h1>
-                <p class="text-gray-500">대결 상대를 찾으세요.</p>
+                <h1 class="text-3xl font-black text-indigo-600 italic">Chat Lobby</h1>
+                <p class="text-gray-500">대화할 방을 선택하거나 만드세요.</p>
             </div>
-            <div class="flex flex-col items-end gap-3">
-                <div class="flex items-center gap-3 bg-slate-50 p-2 pl-4 rounded-2xl border border-slate-100 shadow-sm">
-                    <div class="text-right">
-                        <p id="user-name" class="font-bold text-sm text-gray-800">User</p>
-                        <button id="btn-logout" class="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase">Logout</button>
-                    </div>
-                    <img id="user-photo" src="" class="w-10 h-10 rounded-full border-2 border-indigo-200 bg-gray-100 shadow-inner">
+            <div class="flex flex-col items-end gap-2">
+                <div class="flex items-center gap-3 bg-slate-50 p-2 pl-4 rounded-2xl border border-slate-100">
+                    <p id="user-name" class="font-bold text-sm text-gray-800"></p>
+                    <img id="user-photo" src="" class="w-10 h-10 rounded-full border-2 border-indigo-200">
                 </div>
-                <button id="btn-open-create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all w-full">방 만들기</button>
+                <button id="btn-open-create" class="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold w-full hover:bg-indigo-700 transition-colors">새 채팅방 만들기</button>
             </div>
         </div>
         <div id="room-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px] overflow-y-auto pr-2"></div>
@@ -78,71 +52,50 @@
     <!-- 방 만들기 모달 -->
     <div id="create-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50 p-4 backdrop-blur-sm">
         <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-fade">
-            <h2 class="text-2xl font-bold mb-6 text-gray-800">새 게임 생성</h2>
+            <h2 class="text-2xl font-bold mb-6">채팅방 생성</h2>
             <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-semibold text-gray-600 mb-1">방 제목 (1-30자, 한/영/숫자)</label>
-                    <input type="text" id="room-title-input" maxlength="30" class="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none focus:border-indigo-500 transition-colors" placeholder="클린한 방 제목을 입력하세요">
-                </div>
+                <input type="text" id="room-title-input" maxlength="30" class="w-full px-4 py-3 rounded-xl border outline-none focus:border-indigo-500" placeholder="방 제목 (최대 30자)">
                 <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-600 mb-1">최대 인원</label>
-                        <select id="max-players-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none">
-                            <option value="2">2명</option>
-                            <option value="4" selected>4명</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-600 mb-1">시간 제한</label>
-                        <select id="time-limit-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none">
-                            <option value="10" selected>10초</option>
-                            <option value="20">20초</option>
-                        </select>
-                    </div>
+                    <select id="max-players-input" class="w-full px-4 py-3 rounded-xl border outline-none">
+                        <option value="10">10명</option>
+                        <option value="50" selected>50명</option>
+                    </select>
+                    <div class="flex items-center justify-center text-xs text-gray-400">인원 제한</div>
                 </div>
             </div>
             <div class="flex gap-3 mt-8">
-                <button id="btn-close-modal" class="flex-1 px-4 py-3 rounded-xl bg-gray-100 font-bold text-gray-600 hover:bg-gray-200 transition-all">취소</button>
-                <button id="btn-create-confirm" class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 font-bold text-white hover:bg-indigo-700 shadow-lg transition-all">생성</button>
+                <button id="btn-close-modal" class="flex-1 py-3 rounded-xl bg-gray-100 font-bold">취소</button>
+                <button id="btn-create-confirm" class="flex-1 py-3 rounded-xl bg-indigo-600 font-bold text-white hover:bg-indigo-700">생성</button>
             </div>
         </div>
     </div>
 
-    <!-- 게임 화면 -->
-    <div id="game-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[750px] hidden animate-fade relative">
-        <div class="absolute top-0 left-0 w-full h-1.5 bg-gray-100 z-10">
-            <div id="timer-progress" class="timer-bar h-full bg-indigo-400 w-full"></div>
-        </div>
-        <div class="bg-indigo-600 pt-6 pb-4 px-4 text-white flex justify-between items-center">
-            <button id="btn-exit" class="text-indigo-200 hover:text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    <!-- 채팅 화면 -->
+    <div id="game-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[750px] hidden relative animate-fade">
+        <div class="bg-indigo-600 p-4 text-white flex justify-between items-center shadow-lg">
+            <button id="btn-exit" class="text-white font-bold opacity-80 hover:opacity-100 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                목록
             </button>
-            <div class="text-center">
-                <h2 id="display-room-title" class="font-bold text-sm truncate w-40">ROOM</h2>
-                <p id="display-room-info" class="text-[10px] opacity-70 mt-0.5">READY</p>
-            </div>
-            <div id="room-timer-text" class="font-mono text-xs bg-black/30 px-2 py-1 rounded-lg">0.0s</div>
+            <h2 id="display-room-title" class="font-bold truncate w-40 text-center">Chat Room</h2>
+            <div class="w-10"></div>
         </div>
-        <div class="p-8 bg-indigo-50 text-center border-b border-indigo-100">
-            <div class="text-[10px] font-black text-indigo-300 mb-2 uppercase tracking-widest">CURRENT WORD</div>
-            <div id="current-word" class="text-5xl font-black text-indigo-900 italic">...</div>
-        </div>
-        <div id="history-container" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 bg-white"></div>
-        <div class="p-4 bg-gray-50 border-t border-gray-100">
-            <form id="word-form" class="flex gap-2">
-                <input type="text" id="word-input" maxlength="10" autocomplete="off" placeholder="한글 단어만 입력..." class="flex-1 px-5 py-4 rounded-2xl border border-gray-200 outline-none focus:border-indigo-500">
-                <button type="submit" id="btn-word-submit" class="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-bold shadow-lg disabled:opacity-50">전송</button>
+        
+        <div id="history-container" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50"></div>
+        
+        <div class="p-4 bg-white border-t">
+            <form id="chat-form" class="flex gap-2">
+                <input type="text" id="chat-input" maxlength="100" autocomplete="off" placeholder="메시지를 입력하세요 (최대 100자)" class="flex-1 px-5 py-4 rounded-2xl border outline-none focus:border-indigo-500">
+                <button type="submit" class="bg-indigo-600 text-white px-6 rounded-2xl font-bold hover:bg-indigo-700 shadow-md transition-all">전송</button>
             </form>
         </div>
     </div>
 
     <script type="module">
-        // Firebase 보안 전문 지침에 따른 모듈 로드
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, getDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // Firebase 설정 (기존 설정 유지)
         const firebaseConfig = {
             apiKey: "AIzaSyB7NGfWI8I_qjsA3sBJXCPq8g45qXzPipA",
             authDomain: "wordliner1234.firebaseapp.com",
@@ -153,71 +106,44 @@
             measurementId: "G-C6QD2SJZ4D"
         };
 
-        const appId = 'wordliner1234-relay-v2'; // 버전 업그레이드
+        const appId = 'secure-chat-v1';
+        const BAD_WORDS = ['바보','멍청이','병신','또라이','미친놈','미친년','정신병자','등신','호구','찌질이','찐따','폐인','고자','루저','씨발','시발','씨팔','시팔','씹','씹새끼','씹년','씹놈','개새끼','개새','새끼','좆','좆같네','좆같다','좆같은','엿같네','엿같다','엿먹어','엿이나','꺼져','닥쳐','닥치고','지랄','지랄하네','지랄마','지랄놈','존나','졸라','개같네','개같다','개병신','개또라이','개미친','개지랄','개빡쳐','개빡침','빡치네','빡쳐','열받네','열받아','ㅅㅂ','ㅆㅂ','ㅅㅍ','ㅂㅅ','ㅄ','ㅈㄴ','ㅈㄹ','ㅈ같','ㅈㄱㅌ','ㅈㅅ','느금마','느금','니애미','니애비','애미','애비','썅','썩을놈','뒤져','뒤질래','죽어','죽여버려','꺼져라','좆밥','꼴통','노답','답없네'];
 
-        // [보안] 클라이언트 측 상상 상태 관리
         const STATE = {
             currentUser: null,
             currentRoomId: null,
             lastActionTime: 0,
-            lastCreateTime: 0,
-            failCount: 0,
-            isBlocked: false,
-            usedWords: new Set(),
-            lastWord: ""
+            isBlocked: false
         };
 
         let db, auth, provider;
-        let unsubRoom = null, unsubHistory = null;
-        let timerId = null;
+        let unsubRoom, unsubHistory;
 
-        // [보안] 헬퍼 함수: XSS 방지 텍스트 노드 생성
-        const safeText = (text) => document.createTextNode(text);
+        const setStoredActionTime = (time) => localStorage.setItem('sc_last_action', time.toString());
+        const getStoredActionTime = () => parseInt(localStorage.getItem('sc_last_action') || '0');
 
-        // [보안] 헬퍼 함수: 입력값 정규식 검증
-        const VALIDATORS = {
-            roomTitle: (val) => /^[a-zA-Z0-9가-힣\s]{1,30}$/.test(val),
-            word: (val) => /^[가-힣]{1,10}$/.test(val)
-        };
-
-        // [보안] 알림 시스템 (innerHTML 미사용)
         const showNotice = (msg, type = 'error') => {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
-            toast.className = `p-4 rounded-xl shadow-xl text-white text-sm font-bold animate-fade flex items-center gap-2 ${type === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`;
-            
-            const icon = document.createElement('span');
-            icon.textContent = type === 'error' ? '⚠️' : '✅';
-            toast.appendChild(icon);
-            toast.appendChild(safeText(msg));
-            
+            toast.className = `p-4 rounded-xl shadow-xl text-white text-sm font-bold flex items-center gap-2 animate-fade ${type === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`;
+            toast.textContent = msg; // [보안] XSS 방지
             container.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
+            setTimeout(() => toast.remove(), 3000);
         };
 
-        // [보안] 지수 백오프 기반 재시도 로직
-        const retryOperation = async (operation, maxRetries = 3) => {
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    return await operation();
-                } catch (err) {
-                    if (i === maxRetries - 1) throw err;
-                    await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
-                }
+        const safeOperation = async (op, name = "작업") => {
+            try { return await op(); } 
+            catch(e) { 
+                console.error(e);
+                showNotice(`${name} 중 오류 발생`); 
             }
         };
 
-        // 초기화
         try {
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
             provider = new GoogleAuthProvider();
-
-            // 개발자 콘솔 보안 팁
-            console.log("%c[보안 가이드]", "color: white; background: #4f46e5; padding: 4px 8px; border-radius: 4px; font-weight: bold;");
-            console.info("1. Firebase Security Rules를 반드시 적용하여 서버측 검증을 수행하세요.");
-            console.info("2. 클라이언트측 검증은 사용자 경험용이며, 모든 중요 로직은 서버에서 검증되어야 합니다.");
 
             onAuthStateChanged(auth, (user) => {
                 STATE.currentUser = user;
@@ -226,14 +152,9 @@
                     document.getElementById('user-photo').src = user.photoURL || '';
                     toggleScreen('lobby-screen');
                     initLobby();
-                } else {
-                    toggleScreen('auth-screen');
-                }
+                } else { toggleScreen('auth-screen'); }
             });
-        } catch (e) {
-            console.error(e);
-            showNotice("설정 로드 실패");
-        }
+        } catch (e) { showNotice("Firebase 로드 오류"); }
 
         const toggleScreen = (id) => {
             ['auth-screen', 'lobby-screen', 'game-screen'].forEach(s => {
@@ -241,206 +162,133 @@
             });
         };
 
-        // 로비 초기화
         const initLobby = () => {
-            const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms');
-            onSnapshot(roomsRef, (snap) => {
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'rooms'), (snap) => {
                 const list = document.getElementById('room-list');
-                list.innerHTML = ''; // 초기화 (내부에 노드 추가할 것이므로 안전)
-                
+                list.innerHTML = '';
                 snap.forEach(d => {
                     const room = d.data();
                     const card = document.createElement('div');
-                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 cursor-pointer transition-all animate-fade";
-                    
-                    const top = document.createElement('div');
-                    top.className = "flex justify-between mb-2";
+                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-white transition-all animate-fade shadow-sm";
                     
                     const title = document.createElement('h3');
                     title.className = "font-bold text-gray-800 truncate";
-                    title.appendChild(safeText(room.title));
-                    
-                    const count = document.createElement('span');
-                    count.className = "text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-black";
-                    count.appendChild(safeText(`${room.playerCount}/${room.maxPlayers}`));
-                    
-                    top.append(title, count);
+                    title.textContent = room.title;
                     
                     const info = document.createElement('p');
-                    info.className = "text-[10px] text-gray-400";
-                    info.appendChild(safeText(`⏱ ${room.timeLimit}s | Host: ${room.hostName}`));
+                    info.className = "text-xs text-gray-400 mt-1";
+                    info.textContent = `Host: ${room.hostName} | 인원: ${room.playerCount || 0}/${room.maxPlayers}`;
                     
-                    card.append(top, info);
+                    card.append(title, info);
                     card.onclick = () => joinRoom(d.id);
                     list.appendChild(card);
                 });
-            }, (err) => {
-                console.error("Lobby Error:", err);
-                if (err.code === 'permission-denied') showNotice("Firestore 권한 설정을 확인하세요.");
             });
         };
 
-        // [보안] 방 생성 (Rate Limiting 적용)
         document.getElementById('btn-create-confirm').onclick = async () => {
             const now = Date.now();
-            if (now - STATE.lastCreateTime < 30000) {
-                return showNotice("방 생성은 30초에 한 번만 가능합니다.");
-            }
+            if (now - parseInt(localStorage.getItem('sc_last_create') || '0') < 30000) return showNotice("방 생성은 30초에 한 번만 가능합니다.");
+            
+            const title = document.getElementById('room-title-input').value.trim();
+            if (title.length < 2) return showNotice("제목을 2자 이상 입력해주세요.");
 
-            const titleInput = document.getElementById('room-title-input');
-            const title = titleInput.value.trim();
-            const max = parseInt(document.getElementById('max-players-input').value);
-            const time = parseInt(document.getElementById('time-limit-input').value);
-
-            if (!VALIDATORS.roomTitle(title)) {
-                return showNotice("방 제목 형식이 올바르지 않습니다.");
-            }
-
-            try {
-                const roomData = {
-                    title, maxPlayers: max, timeLimit: time,
+            await safeOperation(async () => {
+                const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms'), {
+                    title, maxPlayers: parseInt(document.getElementById('max-players-input').value),
                     playerCount: 1, players: [STATE.currentUser.uid],
-                    hostName: STATE.currentUser.displayName,
-                    createdAt: serverTimestamp()
-                };
-                
-                const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms'), roomData);
-                STATE.lastCreateTime = now;
+                    hostName: STATE.currentUser.displayName, createdAt: serverTimestamp()
+                });
+                localStorage.setItem('sc_last_create', now.toString());
                 joinRoom(docRef.id);
                 document.getElementById('create-modal').classList.add('hidden');
-                titleInput.value = '';
-            } catch (err) {
-                showNotice("방 생성 실패");
-            }
+            }, "방 생성");
         };
 
-        // 게임 참가
         const joinRoom = async (id) => {
-            try {
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id);
-                const snap = await getDoc(roomRef);
-                if (!snap.exists()) return showNotice("존재하지 않는 방입니다.");
-                
-                const data = snap.data();
-                if (!data.players.includes(STATE.currentUser.uid)) {
-                    if (data.playerCount >= data.maxPlayers) return showNotice("방이 가득 찼습니다.");
-                    await updateDoc(roomRef, {
-                        players: [...data.players, STATE.currentUser.uid],
-                        playerCount: data.playerCount + 1
-                    });
-                }
-                
-                STATE.currentRoomId = id;
-                toggleScreen('game-screen');
-                startRoomListener();
-            } catch (err) {
-                showNotice("방 입장 실패");
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id);
+            const snap = await getDoc(roomRef);
+            if (!snap.exists()) return;
+            const data = snap.data();
+            
+            if (!data.players.includes(STATE.currentUser.uid)) {
+                if (data.playerCount >= data.maxPlayers) return showNotice("방이 가득 찼습니다.");
+                await updateDoc(roomRef, { players: [...data.players, STATE.currentUser.uid], playerCount: data.playerCount + 1 });
             }
+            
+            STATE.currentRoomId = id;
+            toggleScreen('game-screen');
+            startListeners();
         };
 
-        // 게임 리스너
-        const startRoomListener = () => {
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.currentRoomId);
-            unsubRoom = onSnapshot(roomRef, (snap) => {
-                if (!snap.exists()) return exitRoom();
-                const data = snap.data();
-                document.getElementById('display-room-title').textContent = data.title;
-                document.getElementById('display-room-info').textContent = `${data.playerCount}/${data.maxPlayers} PLAYERS`;
-                
-                // 타이머 리셋 및 관리 로직... (생략/유지)
+        const startListeners = () => {
+            unsubRoom = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.currentRoomId), (snap) => {
+                if(!snap.exists()) return exitRoom();
+                document.getElementById('display-room-title').textContent = snap.data().title;
             });
 
-            const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.currentRoomId, 'history');
-            const historyQuery = query(historyRef, orderBy('createdAt', 'asc'));
-            
-            unsubHistory = onSnapshot(historyQuery, (snap) => {
+            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.currentRoomId, 'messages'), orderBy('createdAt', 'asc'), limit(50));
+            unsubHistory = onSnapshot(q, (snap) => {
                 const container = document.getElementById('history-container');
                 container.innerHTML = '';
-                STATE.usedWords.clear();
-
+                
                 snap.forEach(d => {
-                    const l = d.data();
-                    STATE.usedWords.add(l.word);
-                    STATE.lastWord = l.word;
+                    const msg = d.data();
+                    const isMe = msg.userId === STATE.currentUser.uid;
                     
-                    const isMe = l.userId === STATE.currentUser.uid;
                     const wrapper = document.createElement('div');
-                    wrapper.className = `flex ${isMe ? 'justify-end' : 'justify-start'} animate-fade`;
+                    wrapper.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-2`;
+                    
+                    if (!isMe) {
+                        const name = document.createElement('span');
+                        name.className = "text-[10px] text-gray-400 ml-2 mb-1 font-bold uppercase";
+                        name.textContent = msg.userName;
+                        wrapper.appendChild(name);
+                    }
                     
                     const bubble = document.createElement('div');
-                    bubble.className = `px-4 py-2 rounded-2xl font-bold text-sm shadow-sm ${isMe ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-gray-800'}`;
-                    bubble.appendChild(safeText(l.word));
+                    bubble.className = `max-w-[80%] px-4 py-2 rounded-2xl text-sm shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white text-gray-800 border rounded-bl-none'}`;
+                    bubble.textContent = msg.text;
                     
                     wrapper.appendChild(bubble);
                     container.appendChild(wrapper);
                 });
-                
-                document.getElementById('current-word').textContent = STATE.lastWord || "시작!";
                 container.scrollTop = container.scrollHeight;
             });
         };
 
-        // [보안] 단어 제출 (Debouncing & Logic 검증)
-        document.getElementById('word-form').onsubmit = async (e) => {
+        document.getElementById('chat-form').onsubmit = async (e) => {
             e.preventDefault();
             const now = Date.now();
-            
-            if (STATE.isBlocked) return showNotice("연속 실패로 인해 잠시 차단되었습니다.");
-            if (now - STATE.lastActionTime < 500) return; // 0.5초 디바운싱
+            if (now - getStoredActionTime() < 1000) return showNotice("도배 방지: 1초 후에 전송 가능합니다.");
 
-            const input = document.getElementById('word-input');
-            const word = input.value.trim();
-            
-            // 1. 형식 검증
-            if (!VALIDATORS.word(word)) {
-                STATE.failCount++;
-                checkAbuse();
-                return showNotice("1-10자 한글만 가능합니다.");
-            }
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
 
-            // 2. 게임 룰 검증
-            if (STATE.usedWords.has(word)) return showNotice("이미 사용된 단어입니다.");
-            if (STATE.lastWord && word[0] !== STATE.lastWord[STATE.lastWord.length - 1]) {
-                STATE.failCount++;
-                checkAbuse();
-                return showNotice("끝말잇기 실패!");
-            }
+            if (!text) return;
+            if (text.length > 100) return showNotice("메시지가 너무 깁니다.");
+            if (BAD_WORDS.some(bw => text.includes(bw))) return showNotice("부적절한 표현이 포함되어 있습니다.");
 
-            try {
-                STATE.lastActionTime = now;
-                STATE.failCount = 0; // 성공 시 카운트 리셋
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.currentRoomId, 'history'), {
-                    word, userId: STATE.currentUser.uid, userName: STATE.currentUser.displayName, createdAt: serverTimestamp()
+            await safeOperation(async () => {
+                setStoredActionTime(Date.now());
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.currentRoomId, 'messages'), {
+                    text, userId: STATE.currentUser.uid, userName: STATE.currentUser.displayName, createdAt: serverTimestamp()
                 });
                 input.value = '';
-            } catch (err) {
-                showNotice("제출 실패: 서버 연결 확인");
-            }
+            }, "메시지 전송");
         };
 
-        // [보안] 의심 활동 감지
-        const checkAbuse = () => {
-            if (STATE.failCount >= 5) {
-                STATE.isBlocked = true;
-                showNotice("의심스러운 활동 감지: 1분간 차단", 'error');
-                setTimeout(() => { STATE.isBlocked = false; STATE.failCount = 0; }, 60000);
-            }
-        };
-
-        const exitRoom = async () => {
-            if (unsubRoom) unsubRoom();
-            if (unsubHistory) unsubHistory();
+        const exitRoom = () => {
+            if(unsubRoom) unsubRoom();
+            if(unsubHistory) unsubHistory();
             toggleScreen('lobby-screen');
             STATE.currentRoomId = null;
         };
 
-        // UI 버튼 이벤트
-        document.getElementById('btn-google-login').onclick = () => signInWithPopup(auth, provider).catch(e => showNotice(e.message));
-        document.getElementById('btn-logout').onclick = () => signOut(auth);
-        document.getElementById('btn-exit').onclick = exitRoom;
+        document.getElementById('btn-google-login').onclick = () => signInWithPopup(auth, provider);
         document.getElementById('btn-open-create').onclick = () => document.getElementById('create-modal').classList.remove('hidden');
         document.getElementById('btn-close-modal').onclick = () => document.getElementById('create-modal').classList.add('hidden');
-
+        document.getElementById('btn-exit').onclick = exitRoom;
     </script>
 </body>
 </html>
