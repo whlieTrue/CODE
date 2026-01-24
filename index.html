@@ -130,17 +130,18 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // Firebase 설정 (직접 입력됨)
+        // 제공해주신 Firebase 설정 적용
         const firebaseConfig = {
-            apiKey: "AIzaSyB-YourActualApiKeyHere", // 실제 API 키로 교체하세요
-            authDomain: "word-relay-matching.firebaseapp.com",
-            projectId: "word-relay-matching",
-            storageBucket: "word-relay-matching.appspot.com",
-            messagingSenderId: "1234567890",
-            appId: "1:1234567890:web:abcdef123456"
+            apiKey: "AIzaSyB7NGfWI8I_qjsA3sBJXCPq8g45qXzPipA",
+            authDomain: "wordliner1234.firebaseapp.com",
+            projectId: "wordliner1234",
+            storageBucket: "wordliner1234.firebasestorage.app",
+            messagingSenderId: "740901576178",
+            appId: "1:740901576178:web:40d66fdbdce871be1f9f6b",
+            measurementId: "G-C6QD2SJZ4D"
         };
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'word-relay-matching';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'wordliner1234-relay';
 
         let app, auth, db, provider;
         let currentUser = null;
@@ -164,7 +165,6 @@
             db = getFirestore(app);
             provider = new GoogleAuthProvider();
 
-            // 인증 상태 감시
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUser = user;
@@ -181,12 +181,11 @@
                 }
             });
         } catch (e) {
-            console.error("Firebase 초기화 에러:", e);
+            console.error("Firebase Init Error:", e);
             authErrorNotice.classList.remove('hidden');
-            document.getElementById('error-details').innerText = "Firebase 초기화에 실패했습니다. API 키를 확인하세요.";
+            document.getElementById('error-details').innerText = "초기화 실패: " + e.message;
         }
 
-        // 구글 로그인
         document.getElementById('btn-google-login').onclick = async () => {
             if (!auth) return;
             try {
@@ -194,7 +193,7 @@
             } catch (error) {
                 console.error("Login Error:", error);
                 authErrorNotice.classList.remove('hidden');
-                document.getElementById('error-details').innerText = error.message;
+                document.getElementById('error-details').innerText = "인증 실패: " + error.message;
             }
         };
 
@@ -217,7 +216,9 @@
                     card.onclick = () => joinRoom(room.id);
                     roomList.appendChild(card);
                 });
-            }, (err) => console.error("Room List Error:", err));
+            }, (err) => {
+                console.error("Rooms Stream Error:", err);
+            });
         };
 
         const joinRoom = async (roomId) => {
