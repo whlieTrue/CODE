@@ -2,111 +2,130 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.gstatic.com https://*.googleapis.com https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.gstatic.com https://*.googleapis.com https://cdn.tailwindcss.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https://*.googleusercontent.com https://www.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.firebase.com https://www.gstatic.com https://identitytoolkit.googleapis.com; frame-src 'self' https://*.firebaseapp.com https://*.googleapis.com;">
     
-    <title>시큐어 챗 광장 - 프리미엄 에디션</title>
+    <title>시큐어 챗 - 모바일 최적화 에디션</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .chat-container::-webkit-scrollbar { width: 6px; }
-        .chat-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
+        body { font-family: 'Pretendard', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .chat-container::-webkit-scrollbar { width: 4px; }
+        .chat-container::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 10px; }
         .hidden { display: none; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade { animation: fadeIn 0.2s ease-out forwards; }
-        .typing-dots::after { content: '...'; animation: typing 1s infinite; }
-        @keyframes typing { 0% { content: '.'; } 33% { content: '..'; } 66% { content: '...'; } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        .mobile-panel { animation: slideUp 0.3s ease-out; }
+        .message-bubble { max-width: 85%; transition: all 0.2s; }
+        .btn-touch { min-height: 48px; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
-<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
+<body class="bg-slate-50 min-h-screen flex flex-col md:items-center md:justify-center">
 
-    <div id="toast-container" class="fixed top-10 right-4 z-[100] space-y-2"></div>
+    <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm space-y-2"></div>
 
     <!-- 로그인 화면 -->
-    <div id="auth-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-10 text-center animate-fade">
-        <h1 class="text-4xl font-black text-indigo-600 italic mb-2">Secure Chat</h1>
-        <p class="text-gray-400 mb-8 font-medium">풀기능 실시간 보안 채팅</p>
-        <button id="btn-google-login" class="w-full flex items-center justify-center gap-4 bg-white border border-gray-100 py-4 rounded-2xl font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
+    <div id="auth-screen" class="flex-1 md:flex-none w-full max-w-md bg-white md:rounded-3xl md:shadow-2xl p-8 flex flex-col justify-center text-center">
+        <div class="mb-10">
+            <h1 class="text-5xl font-black text-indigo-600 italic mb-3 tracking-tighter">Secure Chat</h1>
+            <p class="text-slate-400 font-medium">친구와 함께하는 안전한 대화</p>
+        </div>
+        <button id="btn-google-login" class="btn-touch w-full bg-white border border-slate-200 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm gap-3">
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6" alt="Google">
-            Google 로그인
+            Google 계정으로 로그인
         </button>
     </div>
 
     <!-- 닉네임 설정 -->
-    <div id="nickname-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl p-10 text-center animate-fade hidden">
-        <h2 class="text-2xl font-bold text-gray-800 mb-6">닉네임 설정</h2>
-        <input type="text" id="nickname-input" maxlength="10" class="w-full px-5 py-4 rounded-2xl border text-center font-bold mb-4" placeholder="사용할 닉네임">
-        <button id="btn-set-nickname" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all">입장하기</button>
+    <div id="nickname-screen" class="hidden flex-1 md:flex-none w-full max-w-md bg-white md:rounded-3xl md:shadow-2xl p-8 flex flex-col justify-center text-center">
+        <h2 class="text-2xl font-bold text-slate-800 mb-6">반가워요! 닉네임이 무엇인가요?</h2>
+        <input type="text" id="nickname-input" maxlength="10" class="w-full px-6 py-5 rounded-2xl border-2 border-slate-100 focus:border-indigo-500 outline-none text-center font-bold text-xl mb-4" placeholder="닉네임 입력">
+        <button id="btn-set-nickname" class="btn-touch w-full bg-indigo-600 text-white rounded-2xl font-bold text-lg hover:bg-indigo-700 shadow-lg">시작하기</button>
     </div>
 
     <!-- 로비 화면 -->
-    <div id="lobby-screen" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 animate-fade hidden">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-black text-indigo-600 italic">Lobby</h1>
-            <div class="flex items-center gap-3">
-                <div class="text-right">
-                    <p id="user-display-name" class="font-bold text-sm"></p>
-                    <button id="btn-logout" class="text-xs text-red-400">로그아웃</button>
-                </div>
-                <img id="user-photo" class="w-10 h-10 rounded-full border">
+    <div id="lobby-screen" class="hidden flex-1 w-full max-w-4xl md:h-[800px] bg-white md:rounded-3xl md:shadow-2xl flex flex-col overflow-hidden">
+        <header class="p-6 border-b flex justify-between items-center bg-white sticky top-0 z-10">
+            <div>
+                <h1 class="text-2xl font-black text-indigo-600 italic">Lobby</h1>
+                <p id="user-display-name" class="text-sm font-bold text-slate-500"></p>
             </div>
-        </div>
-        <button id="btn-open-create" class="w-full mb-6 bg-indigo-600 text-white py-4 rounded-2xl font-bold">새 채팅방 만들기</button>
-        <div id="room-list" class="grid gap-4 h-[400px] overflow-y-auto"></div>
+            <div class="flex items-center gap-3">
+                <button id="btn-logout" class="text-xs font-bold text-rose-400 mr-2">로그아웃</button>
+                <img id="user-photo" class="w-12 h-12 rounded-2xl border-2 border-indigo-100 object-cover shadow-sm">
+            </div>
+        </header>
+        
+        <main class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+            <div class="flex justify-between items-center px-2">
+                <h2 class="font-extrabold text-slate-700">활성화된 채팅방</h2>
+                <button id="btn-open-create" class="text-sm font-bold text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full">+ 방 만들기</button>
+            </div>
+            <div id="room-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+        </main>
     </div>
 
-    <!-- 채팅 화면 -->
-    <div id="game-screen" class="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden flex h-[800px] hidden animate-fade">
-        <!-- 왼쪽: 사이드바 (접속자 목록) -->
-        <div class="w-64 bg-slate-50 border-r flex flex-col">
-            <div class="p-4 border-b font-bold text-gray-700 flex justify-between items-center">
-                <span>접속 중</span>
-                <span id="online-count" class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">0</span>
+    <!-- 채팅 화면 (모바일 대응 레이아웃) -->
+    <div id="game-screen" class="hidden fixed inset-0 md:relative md:inset-auto w-full md:max-w-6xl h-full md:h-[850px] bg-white md:rounded-3xl md:shadow-2xl flex overflow-hidden">
+        
+        <!-- 사이드바 (모바일에서는 오버레이 패널) -->
+        <aside id="chat-sidebar" class="hidden md:flex w-72 bg-slate-50 border-r flex-col z-30 transition-all">
+            <div class="p-5 border-b bg-white flex justify-between items-center">
+                <span class="font-extrabold text-slate-800">참여자</span>
+                <span id="online-count" class="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded-full">0</span>
             </div>
-            <div id="online-list" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
-            <div id="typing-indicator" class="p-3 text-xs text-indigo-500 font-medium italic hidden">
-                <span id="typing-users"></span>님이 입력 중<span class="typing-dots"></span>
+            <div id="online-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+            <div id="typing-indicator" class="p-4 text-[11px] text-indigo-500 font-bold bg-white border-t hidden">
+                <span id="typing-users"></span> 입력 중...
             </div>
-        </div>
+        </aside>
 
-        <!-- 오른쪽: 채팅창 -->
-        <div class="flex-1 flex flex-col relative">
-            <div class="bg-indigo-600 p-4 text-white flex justify-between items-center">
-                <button id="btn-exit" class="font-bold">목록으로</button>
-                <h2 id="display-room-title" class="font-bold">Chat Room</h2>
-                <div class="w-10"></div>
+        <!-- 메인 채팅창 -->
+        <section class="flex-1 flex flex-col min-w-0 bg-white relative">
+            <header class="h-16 border-b flex items-center justify-between px-4 bg-white/80 backdrop-blur-md z-20">
+                <div class="flex items-center gap-3">
+                    <button id="btn-exit" class="p-2 -ml-2 text-slate-400 hover:text-indigo-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <div>
+                        <h2 id="display-room-title" class="font-bold text-slate-800 truncate max-w-[150px]">Room</h2>
+                        <div id="mobile-member-count" class="md:hidden text-[10px] text-indigo-500 font-bold">멤버 0명 접속 중</div>
+                    </div>
+                </div>
+                <button id="btn-toggle-members" class="md:hidden p-2 text-slate-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                </button>
+            </header>
+
+            <div id="dm-notice" class="bg-amber-50 px-4 py-2 text-[11px] text-amber-700 font-bold flex justify-between items-center border-b animate-fade hidden">
+                <span>🔒 <span id="dm-target-name"></span>님에게만 보내는 메시지</span>
+                <button onclick="clearDM()" class="text-amber-900 underline">해제</button>
             </div>
 
-            <!-- DM 타겟 표시줄 -->
-            <div id="dm-notice" class="bg-amber-50 p-2 text-xs text-amber-700 text-center font-bold hidden border-b flex justify-between px-4">
-                <span>[DM 모드] <span id="dm-target-name"></span>님에게만 메시지를 보냅니다.</span>
-                <button onclick="clearDM()" class="text-red-500">해제</button>
-            </div>
+            <div id="history-container" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30"></div>
 
-            <div id="history-container" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50"></div>
-
-            <div class="p-4 bg-white border-t">
-                <form id="chat-form" class="flex items-center gap-2">
-                    <label class="cursor-pointer bg-slate-100 p-3 rounded-2xl hover:bg-slate-200 transition-colors">
+            <footer class="p-4 bg-white border-t safe-area-bottom">
+                <form id="chat-form" class="flex items-end gap-2 max-w-4xl mx-auto">
+                    <label class="cursor-pointer bg-slate-100 p-4 rounded-2xl hover:bg-slate-200 transition-colors flex-shrink-0">
                         <input type="file" id="file-input" class="hidden" accept="image/*">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                        <svg class="h-6 w-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     </label>
-                    <input type="text" id="chat-input" class="flex-1 px-5 py-4 rounded-2xl border outline-none focus:border-indigo-500" placeholder="메시지 입력 (이름 클릭 시 DM)">
-                    <button type="submit" class="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold">전송</button>
+                    <textarea id="chat-input" rows="1" class="flex-1 bg-slate-100 px-5 py-4 rounded-2xl outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all resize-none overflow-hidden text-sm" placeholder="메시지 입력..."></textarea>
+                    <button type="submit" class="w-14 h-14 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center shadow-lg shadow-indigo-200 flex-shrink-0">
+                        <svg class="w-6 h-6 rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/></svg>
+                    </button>
                 </form>
-            </div>
-        </div>
+            </footer>
+        </section>
     </div>
 
     <!-- 방 생성 모달 -->
-    <div id="create-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-[100] backdrop-blur-sm">
-        <div class="bg-white rounded-3xl p-8 w-full max-w-md">
-            <h2 class="text-2xl font-bold mb-6">채팅방 생성</h2>
-            <input type="text" id="room-title-input" class="w-full px-4 py-3 rounded-xl border mb-6" placeholder="방 제목">
-            <div class="flex gap-2">
-                <button id="btn-close-modal" class="flex-1 py-3 bg-slate-100 rounded-xl">취소</button>
-                <button id="btn-create-confirm" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl">생성</button>
+    <div id="create-modal" class="fixed inset-0 bg-slate-900/60 flex items-end md:items-center justify-center hidden z-[100] backdrop-blur-sm p-0 md:p-4">
+        <div class="mobile-panel bg-white rounded-t-3xl md:rounded-3xl p-8 w-full max-w-md shadow-2xl">
+            <h2 class="text-2xl font-black mb-6 text-slate-800">새로운 방 만들기</h2>
+            <input type="text" id="room-title-input" class="w-full px-5 py-4 rounded-2xl border-2 border-slate-100 outline-none focus:border-indigo-500 mb-6" placeholder="방 제목을 입력하세요">
+            <div class="flex gap-3">
+                <button id="btn-close-modal" class="btn-touch flex-1 bg-slate-100 rounded-2xl font-bold">닫기</button>
+                <button id="btn-create-confirm" class="btn-touch flex-1 bg-indigo-600 text-white rounded-2xl font-bold">생성하기</button>
             </div>
         </div>
     </div>
@@ -114,7 +133,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp, getDoc, query, orderBy, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB7NGfWI8I_qjsA3sBJXCPq8g45qXzPipA",
@@ -135,15 +154,15 @@
             user: null,
             nickname: localStorage.getItem('sc_nickname') || '',
             roomId: null,
-            dmTarget: null, // {uid, name}
+            dmTarget: null,
+            friends: JSON.parse(localStorage.getItem('sc_friends') || '[]'),
             typingTimeout: null
         };
 
-        // --- 유틸리티 ---
         const showNotice = (m, e=true) => {
             const t = document.createElement('div');
-            t.className = `p-4 rounded-xl shadow-xl ${e?'bg-red-500':'bg-green-500'} text-white text-sm font-bold animate-fade`;
-            t.textContent = m;
+            t.className = `p-4 rounded-2xl shadow-2xl ${e?'bg-rose-500':'bg-indigo-600'} text-white text-xs font-bold animate-fade flex items-center justify-between`;
+            t.innerHTML = `<span>${m}</span>`;
             document.getElementById('toast-container').appendChild(t);
             setTimeout(() => t.remove(), 3000);
         };
@@ -154,21 +173,45 @@
             });
         };
 
+        // --- 친구 관리 ---
+        window.toggleFriend = async (uid, name) => {
+            if(uid === STATE.user.uid) return;
+            const isFriend = STATE.friends.includes(uid);
+            if(isFriend) {
+                STATE.friends = STATE.friends.filter(f => f !== uid);
+                showNotice(`${name}님을 친구 해제했습니다.`, false);
+            } else {
+                STATE.friends.push(uid);
+                showNotice(`${name}님을 친구로 추가했습니다.`, false);
+            }
+            localStorage.setItem('sc_friends', JSON.stringify(STATE.friends));
+            renderOnlineList(); // UI 갱신
+        };
+
+        // --- 메시지 삭제 ---
+        window.deleteMsg = async (msgId) => {
+            if(!confirm("이 메시지를 삭제할까요?")) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.roomId, 'messages', msgId));
+                showNotice("메시지가 삭제되었습니다.", false);
+            } catch (e) { showNotice("삭제 권한이 없습니다."); }
+        };
+
         window.setDM = (uid, name) => {
             if(uid === STATE.user.uid) return;
             STATE.dmTarget = { uid, name };
             document.getElementById('dm-notice').classList.remove('hidden');
             document.getElementById('dm-target-name').textContent = name;
-            document.getElementById('chat-input').placeholder = `${name}님에게 DM 전송 중...`;
+            document.getElementById('chat-input').placeholder = `${name}님에게 DM...`;
         };
 
         window.clearDM = () => {
             STATE.dmTarget = null;
             document.getElementById('dm-notice').classList.add('hidden');
-            document.getElementById('chat-input').placeholder = `메시지 입력 (이름 클릭 시 DM)`;
+            document.getElementById('chat-input').placeholder = `메시지 입력...`;
         };
 
-        // --- 인증 로직 ---
+        // --- 인증 ---
         onAuthStateChanged(auth, (u) => {
             STATE.user = u;
             if (u) {
@@ -192,7 +235,7 @@
             location.reload();
         };
 
-        // --- 로비 로직 ---
+        // --- 로비 ---
         const loadLobby = () => {
             onSnapshot(query(collection(db, 'artifacts', appId, 'public', 'data', 'rooms'), orderBy('createdAt', 'desc')), (snap) => {
                 const list = document.getElementById('room-list');
@@ -200,8 +243,8 @@
                 snap.forEach(d => {
                     const r = d.data();
                     const el = document.createElement('div');
-                    el.className = "p-5 bg-white border rounded-2xl cursor-pointer hover:border-indigo-500 shadow-sm transition-all";
-                    el.innerHTML = `<h3 class="font-bold text-lg">${r.title}</h3><p class="text-xs text-gray-400 mt-1">방장: ${r.hostNickname}</p>`;
+                    el.className = "p-6 bg-white border border-slate-100 rounded-3xl cursor-pointer hover:shadow-lg transition-all active:scale-95 shadow-sm";
+                    el.innerHTML = `<div class="flex flex-col"><span class="font-extrabold text-lg text-slate-800 mb-1">${r.title}</span><span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Host: ${r.hostNickname}</span></div>`;
                     el.onclick = () => joinRoom(d.id, r.title);
                     list.appendChild(el);
                 });
@@ -220,87 +263,96 @@
             joinRoom(docRef.id, title);
         };
 
-        // --- 채팅방 로직 ---
-        let unsubStatus, unsubMessages;
+        // --- 채팅 ---
+        let unsubStatus, unsubMessages, currentOnlineData = [];
+
+        const renderOnlineList = () => {
+            const list = document.getElementById('online-list');
+            list.innerHTML = '';
+            
+            // 친구 먼저 정렬
+            const sorted = [...currentOnlineData].sort((a, b) => {
+                const aFriend = STATE.friends.includes(a.id);
+                const bFriend = STATE.friends.includes(b.id);
+                return bFriend - aFriend;
+            });
+
+            sorted.forEach(d => {
+                const s = d.data;
+                const isFriend = STATE.friends.includes(d.id);
+                const el = document.createElement('div');
+                el.className = "flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-slate-50 relative overflow-hidden group";
+                el.innerHTML = `
+                    <img src="${s.photo}" class="w-8 h-8 rounded-full">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold ${d.id === STATE.user.uid ? 'text-indigo-600' : 'text-slate-700'}">${s.name} ${isFriend ? '⭐' : ''}</span>
+                        <div class="flex gap-2 mt-1">
+                            <button onclick="setDM('${d.id}', '${s.name}')" class="text-[9px] font-bold text-indigo-400">DM</button>
+                            <button onclick="toggleFriend('${d.id}', '${s.name}')" class="text-[9px] font-bold ${isFriend ? 'text-rose-400' : 'text-slate-400'}">${isFriend ? '친구해제' : '친구추가'}</button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(el);
+            });
+        };
 
         const joinRoom = async (id, title) => {
             STATE.roomId = id;
             document.getElementById('display-room-title').textContent = title;
             toggleScreen('game-screen');
 
-            // 접속 상태 등록
             const statusRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id, 'status', STATE.user.uid);
-            await setDoc(statusRef, { 
-                name: STATE.nickname, 
-                isTyping: false, 
-                lastActive: serverTimestamp(),
-                photo: STATE.user.photoURL
-            });
+            await setDoc(statusRef, { name: STATE.nickname, isTyping: false, lastActive: serverTimestamp(), photo: STATE.user.photoURL });
 
-            // 접속자 및 입력 상태 리스너
             unsubStatus = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', id, 'status'), (snap) => {
-                const list = document.getElementById('online-list');
-                const typingUsers = [];
-                list.innerHTML = '';
-                let count = 0;
-                snap.forEach(d => {
-                    const s = d.data();
-                    count++;
-                    if(s.isTyping && d.id !== STATE.user.uid) typingUsers.push(s.name);
-                    
-                    const el = document.createElement('div');
-                    el.className = "flex items-center gap-2 p-2 hover:bg-white rounded-xl cursor-pointer transition-colors";
-                    el.onclick = () => window.setDM(d.id, s.name);
-                    el.innerHTML = `
-                        <img src="${s.photo}" class="w-6 h-6 rounded-full border">
-                        <span class="text-sm font-medium ${d.id === STATE.user.uid ? 'text-indigo-600' : 'text-gray-700'}">${s.name}</span>
-                        ${s.isTyping ? '<span class="w-2 h-2 bg-indigo-400 rounded-full animate-pulse"></span>' : ''}
-                    `;
-                    list.appendChild(el);
-                });
-                document.getElementById('online-count').textContent = count;
+                currentOnlineData = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+                renderOnlineList();
+                document.getElementById('online-count').textContent = snap.size;
+                document.getElementById('mobile-member-count').textContent = `멤버 ${snap.size}명 접속 중`;
+                
+                const typing = currentOnlineData.filter(u => u.data.isTyping && u.id !== STATE.user.uid).map(u => u.data.name);
                 const ti = document.getElementById('typing-indicator');
-                if(typingUsers.length > 0) {
+                if(typing.length > 0) {
                     ti.classList.remove('hidden');
-                    document.getElementById('typing-users').textContent = typingUsers.join(', ');
+                    document.getElementById('typing-users').textContent = typing.join(', ');
                 } else ti.classList.add('hidden');
             });
 
-            // 메시지 리스너 (제한 해제 또는 200개 정도로 확장)
             const qMsg = query(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', id, 'messages'), orderBy('createdAt', 'asc'));
             unsubMessages = onSnapshot(qMsg, (snap) => {
                 const container = document.getElementById('history-container');
                 container.innerHTML = '';
                 snap.forEach(d => {
                     const m = d.data();
-                    // DM 필터링: 공개 메시지거나, 내가 보낸 DM이거나, 나에게 온 DM일 때만 표시
                     if(m.isDM && m.userId !== STATE.user.uid && m.dmTarget !== STATE.user.uid) return;
 
                     const isMe = m.userId === STATE.user.uid;
                     const div = document.createElement('div');
-                    div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-fade`;
+                    div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-fade group`;
                     
-                    let contentHTML = `<div class="text-sm px-4 py-2 rounded-2xl shadow-sm ${m.isDM ? 'border-2 border-amber-300' : ''} ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none border'}">`;
+                    let contentHTML = `<div class="message-bubble relative text-sm px-5 py-3 rounded-[24px] shadow-sm ${m.isDM ? 'border-2 border-amber-300 bg-amber-50' : isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-white text-slate-800 rounded-tl-none border border-slate-100'}">`;
+                    if(m.isDM) contentHTML += `<div class="text-[9px] font-black mb-1 opacity-60 italic">SECRET</div>`;
+                    if(m.type === 'image') contentHTML += `<img src="${m.fileData}" class="max-w-full rounded-xl mb-2 cursor-pointer shadow-md" onclick="window.open('${m.fileData}')">`;
+                    if(m.text) contentHTML += `<div class="leading-relaxed font-medium">${m.text}</div>`;
                     
-                    if(m.isDM) contentHTML += `<div class="text-[9px] opacity-70 mb-1 font-bold">SECRET MESSAGE</div>`;
-                    if(m.type === 'image') contentHTML += `<img src="${m.fileData}" class="max-w-xs rounded-lg mb-1 cursor-zoom-in" onclick="window.open('${m.fileData}')">`;
-                    if(m.text) contentHTML += `<div>${m.text}</div>`;
+                    // 삭제 버튼 (본인 것만)
+                    if(isMe) {
+                        contentHTML += `<button onclick="deleteMsg('${d.id}')" class="absolute -left-8 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>`;
+                    }
                     contentHTML += `</div>`;
 
-                    div.innerHTML = `
-                        <span class="text-[10px] text-gray-400 mb-1 px-1 cursor-pointer hover:underline" onclick="setDM('${m.userId}', '${m.userName}')">
-                            ${m.userName} ${m.isDM ? '→ ' + m.dmTargetName : ''}
-                        </span>
-                        ${contentHTML}
-                    `;
+                    div.innerHTML = `<span class="text-[10px] font-bold text-slate-400 mb-1 px-2">${m.userName}</span>${contentHTML}`;
                     container.appendChild(div);
                 });
                 container.scrollTop = container.scrollHeight;
             });
         };
 
-        // --- 입력 로직 ---
-        document.getElementById('chat-input').oninput = () => {
+        // --- 이벤트 핸들러 ---
+        const input = document.getElementById('chat-input');
+        input.oninput = () => {
+            input.style.height = 'auto';
+            input.style.height = input.scrollHeight + 'px';
             const ref = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.roomId, 'status', STATE.user.uid);
             updateDoc(ref, { isTyping: true });
             clearTimeout(STATE.typingTimeout);
@@ -309,63 +361,41 @@
 
         document.getElementById('chat-form').onsubmit = async (e) => {
             e.preventDefault();
-            const input = document.getElementById('chat-input');
             const text = input.value.trim();
             if(!text) return;
-            
-            const msgData = {
-                text,
-                userId: STATE.user.uid,
-                userName: STATE.nickname,
-                createdAt: serverTimestamp(),
-                type: 'text'
-            };
-
-            if(STATE.dmTarget) {
-                msgData.isDM = true;
-                msgData.dmTarget = STATE.dmTarget.uid;
-                msgData.dmTargetName = STATE.dmTarget.name;
-            }
-
+            const msgData = { text, userId: STATE.user.uid, userName: STATE.nickname, createdAt: serverTimestamp(), type: 'text' };
+            if(STATE.dmTarget) { msgData.isDM = true; msgData.dmTarget = STATE.dmTarget.uid; msgData.dmTargetName = STATE.dmTarget.name; }
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.roomId, 'messages'), msgData);
-            input.value = '';
+            input.value = ''; input.style.height = 'auto';
             clearDM();
         };
 
-        // --- 파일 전송 로직 ---
-        document.getElementById('file-input').onchange = async (e) => {
+        document.getElementById('file-input').onchange = (e) => {
             const file = e.target.files[0];
-            if(!file) return;
-            if(file.size > 800000) return showNotice("파일이 너무 큽니다. (800KB 이하만 가능)");
-
+            if(!file || file.size > 800000) return showNotice("이미지가 너무 큽니다 (800KB 제한)");
             const reader = new FileReader();
-            reader.onload = async (event) => {
-                const msgData = {
-                    fileData: event.target.result,
-                    userId: STATE.user.uid,
-                    userName: STATE.nickname,
-                    createdAt: serverTimestamp(),
-                    type: 'image'
-                };
-                if(STATE.dmTarget) {
-                    msgData.isDM = true;
-                    msgData.dmTarget = STATE.dmTarget.uid;
-                    msgData.dmTargetName = STATE.dmTarget.name;
-                }
+            reader.onload = async (ev) => {
+                const msgData = { fileData: ev.target.result, userId: STATE.user.uid, userName: STATE.nickname, createdAt: serverTimestamp(), type: 'image' };
+                if(STATE.dmTarget) { msgData.isDM = true; msgData.dmTarget = STATE.dmTarget.uid; msgData.dmTargetName = STATE.dmTarget.name; }
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.roomId, 'messages'), msgData);
                 e.target.value = '';
-                clearDM();
             };
             reader.readAsDataURL(file);
         };
 
         document.getElementById('btn-exit').onclick = async () => {
-            if(STATE.roomId) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.roomId, 'status', STATE.user.uid));
-            }
-            if(unsubStatus) unsubStatus();
-            if(unsubMessages) unsubMessages();
+            if(STATE.roomId) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.roomId, 'status', STATE.user.uid));
+            if(unsubStatus) unsubStatus(); if(unsubMessages) unsubMessages();
             toggleScreen('lobby-screen');
+        };
+
+        document.getElementById('btn-toggle-members').onclick = () => {
+            const sb = document.getElementById('chat-sidebar');
+            sb.classList.toggle('hidden');
+            sb.classList.toggle('fixed');
+            sb.classList.toggle('inset-y-0');
+            sb.classList.toggle('right-0');
+            sb.classList.toggle('shadow-2xl');
         };
     </script>
 </body>
