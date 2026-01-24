@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 끝말잇기 광장 (인증 디버그 모드)</title>
+    <title>만남의 광장/title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .chat-container::-webkit-scrollbar { width: 6px; }
@@ -27,9 +27,8 @@
         </div>
         
         <div class="space-y-6">
-            <!-- 에러 메시지 표시 영역 -->
             <div id="auth-error-notice" class="hidden p-4 bg-red-50 rounded-2xl text-xs text-red-600 border border-red-100 mb-4 text-left">
-                <strong id="error-title">인증 오류 발생:</strong><br>
+                <strong id="error-title">인증 오류:</strong><br>
                 <span id="error-details">잠시 후 다시 시도해주세요.</span>
             </div>
             
@@ -41,8 +40,6 @@
                 <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6 h-6" alt="Google Logo">
                 Google 계정으로 시작하기
             </button>
-            
-            <p class="text-[10px] text-gray-400">버튼이 클릭되지 않는다면 브라우저의 팝업 차단 설정을 확인하세요.</p>
         </div>
     </div>
 
@@ -68,9 +65,7 @@
             </div>
         </div>
         
-        <div id="room-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px] overflow-y-auto pr-2">
-            <!-- 룸 리스트 동적 삽입 -->
-        </div>
+        <div id="room-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px] overflow-y-auto pr-2"></div>
     </div>
 
     <!-- 방 만들기 모달 -->
@@ -120,8 +115,8 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                 </button>
                 <div class="text-center">
-                    <h2 id="display-room-title" class="font-bold text-sm truncate w-40">방 정보 로딩...</h2>
-                    <p id="display-room-info" class="text-[10px] opacity-70 uppercase mt-0.5">0/0 PLAYERS</p>
+                    <h2 id="display-room-title" class="font-bold text-sm truncate w-40">로딩 중...</h2>
+                    <p id="display-room-info" class="text-[10px] opacity-70 mt-0.5">PLAYER INFO</p>
                 </div>
                 <div id="room-timer-text" class="font-mono text-xs bg-black/30 px-2 py-1 rounded-lg">0.0s</div>
             </div>
@@ -148,13 +143,11 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // Firebase 설정 (환경 변수 또는 기본값)
+        // Firebase 설정 복구
         const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
         const firebaseConfig = JSON.parse(configStr);
-
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'word-relay-matching';
-        
-        // 초기화
+
         let app, auth, db, provider;
         try {
             app = initializeApp(firebaseConfig);
@@ -162,11 +155,10 @@
             db = getFirestore(app);
             provider = new GoogleAuthProvider();
         } catch (e) {
-            console.error("Firebase 초기화 실패:", e);
+            console.error("Firebase 초기화 에러:", e);
         }
 
         let currentUser = null;
-        let isAdmin = false;
         let currentRoomId = null;
         let currentRoomData = null;
         let lastWord = "";
@@ -182,81 +174,53 @@
         const authErrorNotice = document.getElementById('auth-error-notice');
         const errorDetails = document.getElementById('error-details');
 
-        // 인증 상태 감시
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                isAdmin = (typeof __is_admin !== 'undefined' && __is_admin === true);
-                
-                document.getElementById('user-name').innerText = user.displayName;
-                document.getElementById('user-photo').src = user.photoURL;
-                if (isAdmin) document.getElementById('admin-tag').classList.remove('hidden');
-
-                authScreen.classList.add('hidden');
-                lobbyScreen.classList.remove('hidden');
-                listenToRooms();
-            } else {
-                currentUser = null;
-                authScreen.classList.remove('hidden');
-                lobbyScreen.classList.add('hidden');
-                gameScreen.classList.add('hidden');
-            }
-        });
-
-        // 로그인 버튼 클릭 이벤트 (에러 핸들링 강화)
-        document.getElementById('btn-google-login').onclick = async () => {
-            console.log("로그인 시도 중...");
-            authErrorNotice.classList.add('hidden'); // 이전 에러 숨김
-
-            try {
-                const result = await signInWithPopup(auth, provider);
-                console.log("로그인 성공:", result.user.displayName);
-            } catch (error) {
-                console.error("로그인 실패 에러 코드:", error.code);
-                console.error("로그인 실패 상세 메시지:", error.message);
-                
-                authErrorNotice.classList.remove('hidden');
-                
-                if (error.code === 'auth/unauthorized-domain') {
-                    errorDetails.innerHTML = "현재 도메인이 Firebase 승인 목록에 없습니다.<br>Firebase 콘솔 > Authentication > Settings에서 도메인을 추가하세요.";
-                } else if (error.code === 'auth/operation-not-allowed') {
-                    errorDetails.innerHTML = "Firebase 콘솔에서 Google 로그인 방법이 활성화되지 않았습니다.";
-                } else if (error.code === 'auth/popup-closed-by-user') {
-                    errorDetails.innerText = "로그인 창이 닫혔습니다. 다시 시도해주세요.";
-                } else if (error.code === 'auth/popup-blocked') {
-                    errorDetails.innerText = "브라우저에서 팝업이 차단되었습니다. 팝업 허용 후 다시 시도하세요.";
+        // 인증 상태 확인
+        if (auth) {
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('user-name').innerText = user.displayName;
+                    document.getElementById('user-photo').src = user.photoURL;
+                    authScreen.classList.add('hidden');
+                    lobbyScreen.classList.remove('hidden');
+                    listenToRooms();
                 } else {
-                    errorDetails.innerText = `오류: ${error.message}`;
+                    currentUser = null;
+                    authScreen.classList.remove('hidden');
+                    lobbyScreen.classList.add('hidden');
+                    gameScreen.classList.add('hidden');
                 }
+            });
+        }
+
+        // 구글 로그인 실행
+        document.getElementById('btn-google-login').onclick = async () => {
+            if (!auth) return;
+            authErrorNotice.classList.add('hidden');
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                authErrorNotice.classList.remove('hidden');
+                errorDetails.innerText = error.message;
+                console.error("Login Error:", error);
             }
         };
 
-        // 방 목록 감시 (기존 로직 동일)
         const listenToRooms = () => {
             const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms');
             onSnapshot(roomsRef, (snapshot) => {
                 const roomList = document.getElementById('room-list');
                 roomList.innerHTML = '';
-                const rooms = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                
-                if (rooms.length === 0) {
-                    roomList.innerHTML = `<div class="col-span-full text-center text-gray-400 py-10 font-medium">현재 열려있는 방이 없습니다.</div>`;
-                    return;
-                }
-
-                rooms.forEach(room => {
+                snapshot.docs.forEach(d => {
+                    const room = { id: d.id, ...d.data() };
                     const card = document.createElement('div');
-                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group relative shadow-sm animate-fade";
+                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer shadow-sm";
                     card.innerHTML = `
-                        <div class="flex justify-between items-start mb-3">
-                            <h3 class="font-bold text-gray-800 truncate w-32">${room.title}</h3>
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-gray-800 truncate">${room.title}</h3>
                             <span class="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-black">${room.playerCount || 0}/${room.maxPlayers}</span>
                         </div>
-                        <div class="flex items-center gap-2 mb-4">
-                            <span class="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-md font-bold">⏱ ${room.timeLimit}s</span>
-                            <span class="text-[10px] text-gray-400 truncate">Host: ${room.hostName}</span>
-                        </div>
-                        <button class="w-full py-2 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600 font-black text-xs group-hover:bg-indigo-600 group-hover:text-white transition-all">대결 참여</button>
+                        <p class="text-[10px] text-gray-400">⏱ ${room.timeLimit}s | Host: ${room.hostName}</p>
                     `;
                     card.onclick = () => joinRoom(room.id);
                     roomList.appendChild(card);
@@ -264,29 +228,75 @@
             });
         };
 
-        // 방 입장/나가기/게임 로직은 이전과 동일하므로 생략 (기존 파일의 해당 부분 유지)
-        // [이하 생략 - 이전 소스코드의 createRoom, joinRoom, exitRoom, wordForm 관련 로직들]
         const joinRoom = async (roomId) => {
-            try {
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
-                const roomSnap = await getDoc(roomRef);
-                if (!roomSnap.exists()) return;
-                const data = roomSnap.data();
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId);
+            const snap = await getDoc(roomRef);
+            if (!snap.exists()) return;
+            const data = snap.data();
 
-                if (!data.players.includes(currentUser.uid)) {
-                    if (data.playerCount >= data.maxPlayers) { alert("인원이 가득 찼습니다."); return; }
-                    await updateDoc(roomRef, {
-                        players: [...data.players, currentUser.uid],
-                        playerCount: data.playerCount + 1
+            if (!data.players.includes(currentUser.uid)) {
+                if (data.playerCount >= data.maxPlayers) return alert("방이 가득 찼습니다.");
+                await updateDoc(roomRef, {
+                    players: [...data.players, currentUser.uid],
+                    playerCount: data.playerCount + 1
+                });
+            }
+
+            currentRoomId = roomId;
+            currentRoomData = data;
+            lobbyScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            startListeners();
+        };
+
+        const startListeners = () => {
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
+            unsubscribeRoom = onSnapshot(roomRef, (snap) => {
+                if (!snap.exists()) return exitRoom();
+                currentRoomData = snap.data();
+                document.getElementById('display-room-title').innerText = currentRoomData.title;
+                document.getElementById('display-room-info').innerText = `${currentRoomData.playerCount}/${currentRoomData.maxPlayers} PLAYERS`;
+            });
+
+            const hRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history');
+            unsubscribeHistory = onSnapshot(hRef, (snap) => {
+                const logs = snap.docs.map(d => d.data()).sort((a,b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
+                usedWords = new Set(logs.map(l => l.word));
+                const container = document.getElementById('history-container');
+                container.innerHTML = '';
+                if (logs.length > 0) {
+                    lastWord = logs[logs.length-1].word;
+                    document.getElementById('current-word').innerText = lastWord;
+                    logs.forEach(l => {
+                        const isMe = l.userId === currentUser.uid;
+                        const div = document.createElement('div');
+                        div.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
+                        div.innerHTML = `<div class="px-4 py-2 rounded-2xl ${isMe ? 'bg-indigo-600 text-white' : 'bg-slate-100'} font-bold text-sm shadow-sm">${l.word}</div>`;
+                        container.appendChild(div);
                     });
+                } else {
+                    document.getElementById('current-word').innerText = "준비";
+                    lastWord = "";
                 }
-                currentRoomId = roomId;
-                currentRoomData = data;
-                lobbyScreen.classList.add('hidden');
-                gameScreen.classList.remove('hidden');
-                listenToRoomUpdates();
-                listenToGameHistory();
-            } catch (err) { console.error("Join Error:", err); }
+                container.scrollTop = container.scrollHeight;
+                resetTimer();
+            });
+        };
+
+        const resetTimer = () => {
+            clearInterval(timerInterval);
+            if (!currentRoomData) return;
+            timeLeft = currentRoomData.timeLimit;
+            timerInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                if (timeLeft <= 0) {
+                    timeLeft = 0; clearInterval(timerInterval);
+                    document.getElementById('error-msg').innerText = "시간 종료!";
+                    document.getElementById('error-msg').classList.remove('hidden');
+                }
+                document.getElementById('timer-progress').style.width = `${(timeLeft/currentRoomData.timeLimit)*100}%`;
+                document.getElementById('room-timer-text').innerText = `${timeLeft.toFixed(1)}s`;
+            }, 100);
         };
 
         const exitRoom = async () => {
@@ -308,66 +318,18 @@
             lobbyScreen.classList.remove('hidden');
         };
 
-        const listenToRoomUpdates = () => {
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId);
-            unsubscribeRoom = onSnapshot(roomRef, (snap) => {
-                if (!snap.exists()) { exitRoom(); return; }
-                currentRoomData = snap.data();
-                document.getElementById('display-room-title').innerText = currentRoomData.title;
-                document.getElementById('display-room-info').innerText = `${currentRoomData.playerCount}/${currentRoomData.maxPlayers} PLAYERS`;
-            });
-        };
-
-        const listenToGameHistory = () => {
-            const hRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history');
-            unsubscribeHistory = onSnapshot(hRef, (snap) => {
-                const logs = snap.docs.map(d => d.data()).sort((a,b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
-                usedWords = new Set(logs.map(l => l.word));
-                const container = document.getElementById('history-container');
-                container.innerHTML = '';
-                if (logs.length > 0) {
-                    lastWord = logs[logs.length-1].word;
-                    document.getElementById('current-word').innerText = lastWord;
-                    logs.forEach(l => {
-                        const isMe = l.userId === currentUser.uid;
-                        const div = document.createElement('div');
-                        div.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
-                        div.innerHTML = `<div class="px-4 py-2 rounded-2xl ${isMe ? 'bg-indigo-600 text-white' : 'bg-slate-100'} font-bold text-sm">${l.word}</div>`;
-                        container.appendChild(div);
-                    });
-                } else {
-                    document.getElementById('current-word').innerText = "준비";
-                    lastWord = "";
-                }
-                container.scrollTop = container.scrollHeight;
-                resetTimer();
-            });
-        };
-
-        const resetTimer = () => {
-            clearInterval(timerInterval);
-            if (!currentRoomData) return;
-            timeLeft = currentRoomData.timeLimit;
-            timerInterval = setInterval(() => {
-                timeLeft -= 0.1;
-                if (timeLeft <= 0) { clearInterval(timerInterval); document.getElementById('error-msg').innerText = "시간 초과!"; document.getElementById('error-msg').classList.remove('hidden'); }
-                document.getElementById('timer-progress').style.width = `${(timeLeft/currentRoomData.timeLimit)*100}%`;
-                document.getElementById('room-timer-text').innerText = `${timeLeft.toFixed(1)}s`;
-            }, 100);
-        };
-
         document.getElementById('word-form').onsubmit = async (e) => {
             e.preventDefault();
-            const wInput = document.getElementById('word-input');
-            const word = wInput.value.trim();
+            const input = document.getElementById('word-input');
+            const word = input.value.trim();
             if (!word || timeLeft <= 0) return;
-            if (usedWords.has(word)) { alert("중복 단어!"); return; }
-            if (lastWord && word[0] !== lastWord[lastWord.length-1]) { alert("끝말잇기 실패!"); return; }
+            if (usedWords.has(word)) return alert("이미 사용된 단어입니다.");
+            if (lastWord && word[0] !== lastWord[lastWord.length-1]) return alert("글자가 맞지 않습니다.");
             
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history'), {
                 word, userId: currentUser.uid, userName: currentUser.displayName, createdAt: serverTimestamp()
             });
-            wInput.value = '';
+            input.value = '';
         };
 
         document.getElementById('btn-logout').onclick = () => signOut(auth);
@@ -375,7 +337,7 @@
         document.getElementById('btn-open-create').onclick = () => document.getElementById('create-modal').classList.remove('hidden');
         document.getElementById('btn-close-modal').onclick = () => document.getElementById('create-modal').classList.add('hidden');
         document.getElementById('btn-create-confirm').onclick = async () => {
-            const title = document.getElementById('room-title-input').value || "끝말잇기 방";
+            const title = document.getElementById('room-title-input').value || "끝말잇기 광장";
             const max = parseInt(document.getElementById('max-players-input').value);
             const time = parseInt(document.getElementById('time-limit-input').value);
             const r = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms'), {
