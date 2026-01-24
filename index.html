@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- [보안] CSP 설정 업데이트: 소스맵 및 Firebase 인증 도메인 허용 -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.gstatic.com https://*.googleapis.com https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://*.gstatic.com https://*.googleapis.com https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https://*.googleusercontent.com https://www.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.firebase.com https://www.gstatic.com;">
+    <!-- [보안] CSP 설정: apis.google.com 및 인증 관련 도메인 추가 허용 -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.gstatic.com https://*.googleapis.com https://cdn.tailwindcss.com; script-src 'self' 'unsafe-inline' https://*.gstatic.com https://*.googleapis.com https://cdn.tailwindcss.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https://*.googleusercontent.com https://www.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebaseapp.com https://*.firebase.com https://www.gstatic.com https://identitytoolkit.googleapis.com;">
     
-    <title>시큐어 챗 광장 - 닉네임 설정 버전</title>
+    <title>시큐어 챗 광장</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .chat-container::-webkit-scrollbar { width: 6px; }
@@ -83,15 +83,12 @@
     <div id="game-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[750px] hidden relative animate-fade">
         <div class="bg-indigo-600 p-4 text-white flex justify-between items-center shadow-lg">
             <button id="btn-exit" class="text-white font-bold opacity-80 hover:opacity-100 flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                 목록
             </button>
             <h2 id="display-room-title" class="font-bold truncate w-40 text-center">Chat Room</h2>
             <div class="w-10"></div>
         </div>
-        
         <div id="history-container" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50"></div>
-        
         <div class="p-4 bg-white border-t">
             <form id="chat-form" class="flex gap-2">
                 <input type="text" id="chat-input" maxlength="100" autocomplete="off" placeholder="메시지 입력..." class="flex-1 px-5 py-4 rounded-2xl border outline-none focus:border-indigo-500">
@@ -116,23 +113,19 @@
         };
 
         const appId = 'secure-chat-v2';
-        const BAD_WORDS = ['바보','멍청이','병신','또라이','미친놈','미친년','정신병자','등신','호구','찌질이','찐따','폐인','고자','루저','씨발','시발','씨팔','시팔','씹','개새끼','개새','새끼','좆','엿','꺼져','닥쳐','지랄','존나','졸라','ㅅㅂ','ㅆㅂ','ㅂㅅ','ㅄ','ㅈㄴ','ㅈㄹ','느금마','니애미','썅','뒤져','죽어'];
-
         const STATE = {
             currentUser: null,
             userNickname: localStorage.getItem('sc_nickname') || '',
-            currentRoomId: null,
-            lastActionTime: 0
+            currentRoomId: null
         };
 
         let db, auth, provider;
         let unsubRoom, unsubHistory, unsubLobby;
 
-        const showNotice = (msg, type = 'error') => {
+        const showNotice = (msg) => {
             const container = document.getElementById('toast-container');
-            if (!container) return;
             const toast = document.createElement('div');
-            toast.className = `p-4 rounded-xl shadow-xl text-white text-sm font-bold flex items-center gap-2 animate-fade ${type === 'error' ? 'bg-red-500' : 'bg-emerald-500'}`;
+            toast.className = "p-4 rounded-xl shadow-xl bg-red-500 text-white text-sm font-bold animate-fade";
             toast.textContent = msg;
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
@@ -140,8 +133,7 @@
 
         const toggleScreen = (id) => {
             ['auth-screen', 'nickname-screen', 'lobby-screen', 'game-screen'].forEach(s => {
-                const el = document.getElementById(s);
-                if (el) el.classList.toggle('hidden', s !== id);
+                document.getElementById(s).classList.toggle('hidden', s !== id);
             });
         };
 
@@ -154,13 +146,11 @@
             onAuthStateChanged(auth, (user) => {
                 STATE.currentUser = user;
                 if (user) {
-                    const photoEl = document.getElementById('user-photo');
-                    if (photoEl) photoEl.src = user.photoURL || '';
-                    
+                    document.getElementById('user-photo').src = user.photoURL || '';
                     if (!STATE.userNickname) {
                         toggleScreen('nickname-screen');
                     } else {
-                        updateUserUI();
+                        document.getElementById('user-display-name').textContent = STATE.userNickname;
                         toggleScreen('lobby-screen');
                         initLobby();
                     }
@@ -170,145 +160,66 @@
             });
         } catch (e) { console.error(e); }
 
-        const updateUserUI = () => {
-            const nameEl = document.getElementById('user-display-name');
-            if (nameEl) nameEl.textContent = STATE.userNickname;
+        document.getElementById('btn-google-login').onclick = async () => {
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (e) {
+                console.error(e);
+                showNotice("로그인 중 오류가 발생했습니다. 브라우저 설정을 확인해주세요.");
+            }
         };
 
         document.getElementById('btn-set-nickname').onclick = () => {
-            const input = document.getElementById('nickname-input');
-            const nick = input.value.trim();
-
-            if (!/^[a-zA-Z0-9가-힣]{2,10}$/.test(nick)) {
-                return showNotice("닉네임은 2~10자 한글, 영문, 숫자만 가능합니다.");
-            }
-            if (BAD_WORDS.some(bw => nick.includes(bw))) {
-                return showNotice("닉네임에 부적절한 단어가 포함되어 있습니다.");
-            }
-
+            const nick = document.getElementById('nickname-input').value.trim();
+            if (!/^[a-zA-Z0-9가-힣]{2,10}$/.test(nick)) return showNotice("닉네임 형식이 맞지 않습니다.");
             STATE.userNickname = nick;
             localStorage.setItem('sc_nickname', nick);
-            updateUserUI();
+            document.getElementById('user-display-name').textContent = nick;
             toggleScreen('lobby-screen');
             initLobby();
-        };
-
-        document.getElementById('btn-change-nickname').onclick = () => {
-            toggleScreen('nickname-screen');
         };
 
         const initLobby = () => {
             if (unsubLobby) unsubLobby();
             unsubLobby = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'rooms'), (snap) => {
                 const list = document.getElementById('room-list');
-                if (!list) return;
                 list.innerHTML = '';
                 snap.forEach(d => {
                     const room = d.data();
                     const card = document.createElement('div');
-                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-white transition-all animate-fade shadow-sm";
-                    
-                    const title = document.createElement('h3');
-                    title.className = "font-bold text-gray-800 truncate";
-                    title.textContent = room.title;
-                    
-                    const info = document.createElement('p');
-                    info.className = "text-xs text-gray-400 mt-1";
-                    info.textContent = `Host: ${room.hostNickname || '알 수 없음'} | 인원: ${room.playerCount || 0}/${room.maxPlayers}`;
-                    
-                    card.append(title, info);
+                    card.className = "p-5 bg-white border rounded-2xl cursor-pointer hover:border-indigo-500";
+                    card.innerHTML = `<h3 class="font-bold">${room.title}</h3><p class="text-xs text-gray-400">인원: ${room.playerCount || 0}/${room.maxPlayers}</p>`;
                     card.onclick = () => joinRoom(d.id);
                     list.appendChild(card);
                 });
-            }, (err) => {
-                console.error("Lobby Error:", err);
-                if (err.code === 'permission-denied') showNotice("데이터 접근 권한이 없습니다.");
             });
-        };
-
-        document.getElementById('btn-create-confirm').onclick = async () => {
-            const now = Date.now();
-            if (now - parseInt(localStorage.getItem('sc_last_create') || '0') < 30000) return showNotice("방 생성은 30초에 한 번만 가능합니다.");
-            
-            const title = document.getElementById('room-title-input').value.trim();
-            if (title.length < 2) return showNotice("제목을 2자 이상 입력해주세요.");
-
-            try {
-                const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms'), {
-                    title, 
-                    maxPlayers: parseInt(document.getElementById('max-players-input').value),
-                    playerCount: 1, 
-                    players: [STATE.currentUser.uid],
-                    hostNickname: STATE.userNickname, 
-                    createdAt: serverTimestamp()
-                });
-                localStorage.setItem('sc_last_create', now.toString());
-                joinRoom(docRef.id);
-                document.getElementById('create-modal').classList.add('hidden');
-            } catch (e) { 
-                console.error(e);
-                showNotice("방 생성 실패 (권한 부족)"); 
-            }
         };
 
         const joinRoom = async (id) => {
-            try {
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id);
-                const snap = await getDoc(roomRef);
-                if (!snap.exists()) return;
-                const data = snap.data();
-                
-                if (!data.players.includes(STATE.currentUser.uid)) {
-                    if (data.playerCount >= data.maxPlayers) return showNotice("방이 가득 찼습니다.");
-                    await updateDoc(roomRef, { 
-                        players: [...data.players, STATE.currentUser.uid], 
-                        playerCount: (data.playerCount || 0) + 1 
-                    });
-                }
-                
-                STATE.currentRoomId = id;
-                toggleScreen('game-screen');
-                startListeners();
-            } catch (e) {
-                console.error(e);
-                showNotice("방 입장에 실패했습니다.");
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'rooms', id);
+            const snap = await getDoc(roomRef);
+            if (!snap.exists()) return;
+            const data = snap.data();
+            if (!data.players.includes(STATE.currentUser.uid)) {
+                await updateDoc(roomRef, { players: [...data.players, STATE.currentUser.uid], playerCount: (data.playerCount || 0) + 1 });
             }
+            STATE.currentRoomId = id;
+            toggleScreen('game-screen');
+            startChat();
         };
 
-        const startListeners = () => {
-            if (unsubRoom) unsubRoom();
-            if (unsubHistory) unsubHistory();
-
-            unsubRoom = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.currentRoomId), (snap) => {
-                if(!snap.exists()) return exitRoom();
-                const titleEl = document.getElementById('display-room-title');
-                if (titleEl) titleEl.textContent = snap.data().title;
-            });
-
+        const startChat = () => {
             const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.currentRoomId, 'messages'), orderBy('createdAt', 'asc'), limit(50));
             unsubHistory = onSnapshot(q, (snap) => {
                 const container = document.getElementById('history-container');
-                if (!container) return;
                 container.innerHTML = '';
-                
                 snap.forEach(d => {
                     const msg = d.data();
                     const isMe = msg.userId === STATE.currentUser.uid;
-                    
-                    const wrapper = document.createElement('div');
-                    wrapper.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} mb-2`;
-                    
-                    const name = document.createElement('span');
-                    name.className = "text-[10px] text-gray-400 mx-2 mb-1 font-bold";
-                    name.textContent = isMe ? "나" : msg.userName;
-                    wrapper.appendChild(name);
-                    
-                    const bubble = document.createElement('div');
-                    bubble.className = `max-w-[80%] px-4 py-2 rounded-2xl text-sm shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white text-gray-800 border rounded-bl-none'}`;
-                    bubble.textContent = msg.text;
-                    
-                    wrapper.appendChild(bubble);
-                    container.appendChild(wrapper);
+                    const div = document.createElement('div');
+                    div.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'}`;
+                    div.innerHTML = `<span class="text-[10px] text-gray-400 mb-1">${msg.userName}</span><div class="px-4 py-2 rounded-2xl text-sm ${isMe ? 'bg-indigo-600 text-white' : 'bg-white border'}">${msg.text}</div>`;
+                    container.appendChild(div);
                 });
                 container.scrollTop = container.scrollHeight;
             });
@@ -316,42 +227,31 @@
 
         document.getElementById('chat-form').onsubmit = async (e) => {
             e.preventDefault();
-            const now = Date.now();
-            if (now - STATE.lastActionTime < 1000) return showNotice("도배 방지: 1초 후에 전송 가능합니다.");
-
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
-
-            if (!text || !STATE.currentRoomId) return;
-            if (text.length > 100) return showNotice("메시지가 너무 깁니다.");
-            if (BAD_WORDS.some(bw => text.includes(bw))) return showNotice("부적절한 표현이 포함되어 있습니다.");
-
-            try {
-                STATE.lastActionTime = now;
-                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.currentRoomId, 'messages'), {
-                    text, 
-                    userId: STATE.currentUser.uid, 
-                    userName: STATE.userNickname,
-                    createdAt: serverTimestamp()
-                });
-                input.value = '';
-            } catch (e) { 
-                console.error(e);
-                showNotice("메시지 전송 실패 (권한 부족)"); 
-            }
+            if (!text) return;
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', STATE.currentRoomId, 'messages'), {
+                text, userId: STATE.currentUser.uid, userName: STATE.userNickname, createdAt: serverTimestamp()
+            });
+            input.value = '';
         };
 
-        const exitRoom = () => {
-            if(unsubRoom) unsubRoom();
-            if(unsubHistory) unsubHistory();
+        document.getElementById('btn-exit').onclick = () => {
+            if (unsubHistory) unsubHistory();
             toggleScreen('lobby-screen');
-            STATE.currentRoomId = null;
         };
 
-        document.getElementById('btn-google-login').onclick = () => signInWithPopup(auth, provider).catch(e => console.error(e));
         document.getElementById('btn-open-create').onclick = () => document.getElementById('create-modal').classList.remove('hidden');
         document.getElementById('btn-close-modal').onclick = () => document.getElementById('create-modal').classList.add('hidden');
-        document.getElementById('btn-exit').onclick = exitRoom;
+        document.getElementById('btn-create-confirm').onclick = async () => {
+            const title = document.getElementById('room-title-input').value.trim();
+            if (title.length < 2) return;
+            const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms'), {
+                title, maxPlayers: 50, playerCount: 1, players: [STATE.currentUser.uid], hostNickname: STATE.userNickname, createdAt: serverTimestamp()
+            });
+            joinRoom(docRef.id);
+            document.getElementById('create-modal').classList.add('hidden');
+        };
     </script>
 </body>
 </html>
