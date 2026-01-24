@@ -119,11 +119,21 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'word-relay-matching';
+        // 사용자님의 실제 Firebase 설정값 적용
+        const firebaseConfig = {
+            apiKey: "AIzaSyB7NGfWI8I_qjsA3sBJXCPq8g45qXzPipA",
+            authDomain: "wordliner1234.firebaseapp.com",
+            projectId: "wordliner1234",
+            storageBucket: "wordliner1234.firebasestorage.app",
+            messagingSenderId: "740901576178",
+            appId: "1:740901576178:web:40d66fdbdce871be1f9f6b",
+            measurementId: "G-C6QD2SJZ4D"
+        };
+
+        const appId = 'word-relay-matching'; // Firestore 경로 구분을 위한 ID
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -153,10 +163,10 @@
 
         // Auth
         const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
+            try {
                 await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Auth Error:", error);
             }
         };
 
@@ -169,6 +179,7 @@
 
         // Lobby Logic
         const listenToRooms = () => {
+            // RULE 1: 정해진 경로 구조 사용
             const roomsRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms');
             onSnapshot(roomsRef, (snapshot) => {
                 roomList.innerHTML = '';
@@ -181,7 +192,7 @@
 
                 rooms.forEach(room => {
                     const card = document.createElement('div');
-                    card.className = "p-6 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group shadow-sm";
+                    card.className = "p-6 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group shadow-sm animate-fade";
                     card.innerHTML = `
                         <div class="flex justify-between items-start mb-2">
                             <h3 class="font-bold text-gray-800 group-hover:text-indigo-600 transition-colors truncate w-32">${room.title}</h3>
@@ -196,7 +207,9 @@
                     card.onclick = () => joinRoom(room.id);
                     roomList.appendChild(card);
                 });
-            }, (err) => console.error(err));
+            }, (err) => {
+                console.error("Firestore Error:", err);
+            });
         };
 
         // Room Actions
@@ -303,18 +316,18 @@
             timerProgressBar.style.width = `${percentage}%`;
             timerText.innerText = `${timeLeft.toFixed(1)}s`;
             
-            // 색상 변화
             if (percentage < 30) {
                 timerProgressBar.classList.replace('bg-indigo-400', 'bg-red-500');
-                timerProgressBar.classList.add('bg-red-500');
             } else {
-                timerProgressBar.classList.remove('bg-red-500');
-                timerProgressBar.classList.add('bg-indigo-400');
+                timerProgressBar.classList.replace('bg-red-500', 'bg-indigo-400');
+                if (!timerProgressBar.classList.contains('bg-indigo-400')) {
+                    timerProgressBar.classList.add('bg-indigo-400');
+                }
             }
         };
 
         const handleTimeOut = () => {
-            showError("시간이 초과되었습니다! 게임을 다시 시작하려면 단어를 입력하세요.");
+            showError("시간이 초과되었습니다! 아무 단어나 입력하여 다시 시작하세요.");
             currentWordDisplay.innerText = "TIME OUT";
             lastWord = "";
         };
@@ -334,17 +347,17 @@
         };
 
         const listenToGameHistory = () => {
+            // RULE 1: 컬렉션 경로 구조 준수
             const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history');
             unsubscribeHistory = onSnapshot(historyRef, (snap) => {
                 const logs = snap.docs.map(d => d.data());
+                // RULE 2: 클라이언트 측 정렬
                 logs.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
                 
-                // 중복 단어 추적을 위해 Set 업데이트
                 usedWords = new Set(logs.map(log => log.word));
-                
                 updateGameUI(logs);
-                resetTimer(); // 새 단어가 올 때마다 타이머 리셋
-            });
+                resetTimer();
+            }, (err) => console.error(err));
         };
 
         const updateGameUI = (logs) => {
@@ -380,13 +393,11 @@
             const word = wordInput.value.trim();
             if (!word) return;
 
-            // 중복 단어 체크
             if (usedWords.has(word)) {
                 showError("이미 사용된 단어입니다!");
                 return;
             }
 
-            // 룰 검증
             if (currentRoomData.rule === 'exact3' && word.length !== 3) {
                 showError("3글자 단어만 가능합니다!");
                 return;
@@ -396,8 +407,7 @@
                 return;
             }
 
-            // 끝말잇기 검증
-            if (lastWord && lastWord !== "TIME OUT") {
+            if (lastWord && lastWord !== "TIME OUT" && lastWord !== "START!") {
                 if (lastWord[lastWord.length - 1] !== word[0]) {
                     showError(`'${lastWord[lastWord.length - 1]}'로 시작해야 합니다!`);
                     return;
@@ -414,7 +424,7 @@
                 wordInput.value = '';
                 hideError();
             } catch (err) {
-                showError("서버 오류가 발생했습니다.");
+                showError("전송 중 오류가 발생했습니다.");
             }
         });
 
