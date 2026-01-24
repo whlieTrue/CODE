@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>실시간 끝말잇기 광장 (Google 로그인)</title>
+    <title>실시간 끝말잇기 광장 (관리자 기능 포함)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .chat-container::-webkit-scrollbar { width: 6px; }
@@ -14,6 +14,7 @@
         .timer-bar { transition: width 0.1s linear; }
         .google-btn { box-shadow: 0 2px 4px 0 rgba(0,0,0,0.25); transition: background-color .218s, border-color .218s, box-shadow .218s; }
         .google-btn:hover { box-shadow: 0 0 3px 3px rgba(66,133,244,0.3); }
+        .admin-badge { background: linear-gradient(90deg, #ef4444, #f59e0b); }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
@@ -26,6 +27,11 @@
         </div>
         
         <div class="space-y-6">
+            <div id="auth-error-notice" class="hidden p-4 bg-red-50 rounded-2xl text-xs text-red-600 border border-red-100 mb-4 text-left">
+                <strong>도메인 오류 해결 방법:</strong><br>
+                Firebase 콘솔 > Authentication > Settings > Authorized domains에 현재 접속 중인 도메인을 추가해야 합니다.
+            </div>
+            
             <div class="p-6 bg-indigo-50 rounded-2xl text-sm text-indigo-700 leading-relaxed">
                 계정 정보를 안전하게 보호하기 위해<br><strong>구글 로그인</strong>이 필요합니다.
             </div>
@@ -35,17 +41,16 @@
                 Google 계정으로 시작하기
             </button>
         </div>
-        
-        <p class="text-[11px] text-gray-400 mt-10">
-            알려주신 Client ID 기반으로 연동된 안전한 로그인 방식입니다.
-        </p>
     </div>
 
     <!-- 로비 화면 -->
     <div id="lobby-screen" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 animate-fade hidden">
         <div class="flex justify-between items-start mb-8">
             <div>
-                <h1 class="text-3xl font-black text-indigo-600 italic">Word Relay</h1>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-3xl font-black text-indigo-600 italic">Word Relay</h1>
+                    <span id="admin-tag" class="hidden admin-badge text-[10px] text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Admin</span>
+                </div>
                 <p class="text-gray-500">대결에 참여하거나 새로운 방을 만드세요.</p>
             </div>
             <div class="flex flex-col items-end gap-3">
@@ -146,7 +151,6 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, doc, updateDoc, onSnapshot, serverTimestamp, deleteDoc, getDoc, query } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // 기존 설정을 유지합니다. (알려주신 Client ID는 구글 로그인 설정 시 사용됨)
         const firebaseConfig = {
             apiKey: "AIzaSyB7NGfWI8I_qjsA3sBJXCPq8g45qXzPipA",
             authDomain: "wordliner1234.firebaseapp.com",
@@ -157,6 +161,9 @@
             measurementId: "G-C6QD2SJZ4D"
         };
 
+        // 관리자 이메일 목록 (여기에 본인의 구글 이메일을 추가하세요)
+        const ADMIN_EMAILS = ["your-email@gmail.com", "admin@example.com"]; 
+
         const appId = 'word-relay-matching';
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -164,6 +171,7 @@
         const provider = new GoogleAuthProvider();
 
         let currentUser = null;
+        let isAdmin = false;
         let currentRoomId = null;
         let currentRoomData = null;
         let lastWord = "";
@@ -173,7 +181,6 @@
         let timerInterval = null;
         let timeLeft = 0;
 
-        // UI 엘리먼트
         const authScreen = document.getElementById('auth-screen');
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
@@ -184,18 +191,25 @@
         const currentWordDisplay = document.getElementById('current-word');
         const timerProgressBar = document.getElementById('timer-progress');
         const timerText = document.getElementById('room-timer-text');
+        const adminTag = document.getElementById('admin-tag');
 
-        // 인증 상태 모니터링
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
+                isAdmin = ADMIN_EMAILS.includes(user.email);
+                
                 document.getElementById('user-name').innerText = user.displayName;
                 document.getElementById('user-photo').src = user.photoURL;
+                
+                if (isAdmin) adminTag.classList.remove('hidden');
+                else adminTag.classList.add('hidden');
+
                 authScreen.classList.add('hidden');
                 lobbyScreen.classList.remove('hidden');
                 listenToRooms();
             } else {
                 currentUser = null;
+                isAdmin = false;
                 authScreen.classList.remove('hidden');
                 lobbyScreen.classList.add('hidden');
                 gameScreen.classList.add('hidden');
@@ -203,20 +217,32 @@
             }
         });
 
-        // 로그인 기능
         document.getElementById('btn-google-login').onclick = async () => {
             try {
                 await signInWithPopup(auth, provider);
             } catch (error) {
                 console.error("Login Failed:", error);
-                alert("로그인 중 오류가 발생했습니다: " + error.message);
+                if (error.code === 'auth/unauthorized-domain') {
+                    document.getElementById('auth-error-notice').classList.remove('hidden');
+                } else {
+                    alert("로그인 중 오류가 발생했습니다: " + error.message);
+                }
             }
         };
 
-        // 로그아웃 기능
         document.getElementById('btn-logout').onclick = () => {
-            if (confirm("로그아웃 하시겠습니까?")) {
-                signOut(auth);
+            if (confirm("로그아웃 하시겠습니까?")) signOut(auth);
+        };
+
+        const deleteRoomByAdmin = async (e, roomId) => {
+            e.stopPropagation(); // 카드 클릭 이벤트 방지
+            if (!isAdmin) return;
+            if (confirm("관리자 권한으로 이 방을 강제 폐쇄하시겠습니까?")) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId));
+                } catch (err) {
+                    alert("삭제 실패: " + err.message);
+                }
             }
         };
 
@@ -227,20 +253,20 @@
                 const rooms = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 
                 if (rooms.length === 0) {
-                    roomList.innerHTML = `
-                        <div class="col-span-full flex flex-col items-center justify-center text-gray-300 h-full">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-2 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                            </svg>
-                            <p class="font-bold">진행 중인 게임이 없습니다.</p>
-                        </div>`;
+                    roomList.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center text-gray-300 h-full"><p class="font-bold">진행 중인 게임이 없습니다.</p></div>`;
                     return;
                 }
 
                 rooms.forEach(room => {
                     const card = document.createElement('div');
-                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group shadow-sm animate-fade";
+                    card.className = "p-5 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group shadow-sm animate-fade relative";
+                    
+                    let adminBtn = isAdmin ? `<button class="absolute top-2 right-2 bg-red-100 text-red-600 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:text-white" title="강제 삭제">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>` : '';
+
                     card.innerHTML = `
+                        ${adminBtn}
                         <div class="flex justify-between items-start mb-3">
                             <h3 class="font-bold text-gray-800 group-hover:text-indigo-600 transition-colors truncate w-32">${room.title}</h3>
                             <span class="text-[10px] bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-black uppercase">${room.playerCount || 0}/${room.maxPlayers} Players</span>
@@ -251,7 +277,11 @@
                         </div>
                         <button class="w-full py-2.5 bg-white border border-indigo-200 rounded-xl text-indigo-600 font-black text-xs group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">Join Game</button>
                     `;
+                    
                     card.onclick = () => joinRoom(room.id);
+                    if (isAdmin) {
+                        card.querySelector('button').onclick = (e) => deleteRoomByAdmin(e, room.id);
+                    }
                     roomList.appendChild(card);
                 });
             }, (err) => console.error("Room Sync Error:", err));
@@ -275,10 +305,7 @@
                 });
                 joinRoom(newRoom.id);
                 closeModal();
-            } catch (err) {
-                console.error("Room Creation Failed:", err);
-                alert("방을 생성할 수 없습니다. Firestore 권한을 확인하세요.");
-            }
+            } catch (err) { console.error("Room Creation Failed:", err); }
         };
 
         const joinRoom = async (roomId) => {
@@ -289,9 +316,7 @@
                 const data = roomSnap.data();
 
                 if (!data.players.includes(currentUser.uid)) {
-                    if (data.playerCount >= data.maxPlayers) {
-                        alert("방 인원이 초과되었습니다."); return;
-                    }
+                    if (data.playerCount >= data.maxPlayers) { alert("방 인원이 초과되었습니다."); return; }
                     await updateDoc(roomRef, {
                         players: [...data.players, currentUser.uid],
                         playerCount: data.playerCount + 1
@@ -305,9 +330,7 @@
                 listenToRoomUpdates();
                 listenToGameHistory();
                 hideError();
-            } catch (err) {
-                console.error("Join Error:", err);
-            }
+            } catch (err) { console.error("Join Error:", err); }
         };
 
         const listenToRoomUpdates = () => {
@@ -325,14 +348,11 @@
             unsubscribeHistory = onSnapshot(historyRef, (snapshot) => {
                 const logs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 logs.sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0));
-                
                 usedWords = new Set(logs.map(log => log.word));
                 historyContainer.innerHTML = '';
                 
-                if (logs.length === 0) {
-                    currentWordDisplay.innerText = "READY"; 
-                    lastWord = "";
-                } else {
+                if (logs.length === 0) { currentWordDisplay.innerText = "READY"; lastWord = ""; }
+                else {
                     logs.forEach(log => {
                         const isMe = log.userId === currentUser.uid;
                         const div = document.createElement('div');
@@ -342,15 +362,12 @@
                                 <div class="flex items-center gap-1.5 mb-1 ${isMe ? 'flex-row-reverse' : ''}">
                                     <span class="text-[9px] text-gray-400 font-black uppercase tracking-tighter">${log.userName || 'Unknown'}</span>
                                 </div>
-                                <div class="px-5 py-3 rounded-2xl shadow-sm font-bold text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'}">
-                                    ${log.word}
-                                </div>
+                                <div class="px-5 py-3 rounded-2xl shadow-sm font-bold text-sm ${isMe ? 'bg-indigo-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'}">${log.word}</div>
                             </div>
                         `;
                         historyContainer.appendChild(div);
                     });
-                    const lastLog = logs[logs.length - 1];
-                    lastWord = lastLog.word;
+                    lastWord = logs[logs.length - 1].word;
                     currentWordDisplay.innerText = lastWord;
                 }
                 historyContainer.scrollTop = historyContainer.scrollHeight;
@@ -386,14 +403,8 @@
                     if (roomSnap.exists()) {
                         const data = roomSnap.data();
                         const newPlayers = data.players.filter(p => p !== currentUser.uid);
-                        if (newPlayers.length === 0) {
-                            await deleteDoc(roomRef);
-                        } else {
-                            await updateDoc(roomRef, { 
-                                players: newPlayers, 
-                                playerCount: newPlayers.length 
-                            });
-                        }
+                        if (newPlayers.length === 0) await deleteDoc(roomRef);
+                        else await updateDoc(roomRef, { players: newPlayers, playerCount: newPlayers.length });
                     }
                 } catch (err) { console.error("Exit Error:", err); }
             }
@@ -413,43 +424,22 @@
             e.preventDefault();
             const word = wordInput.value.trim();
             if (!word || !currentRoomId || timeLeft <= 0) return;
-            
-            // 검증 로직
             if (usedWords.has(word)) { showError("이미 사용된 단어입니다!"); return; }
             if (lastWord && lastWord !== "READY" && lastWord !== "😵") {
                 const lastChar = lastWord[lastWord.length - 1];
-                if (word[0] !== lastChar) {
-                    showError(`'${lastChar}'(으)로 시작하는 단어를 입력하세요!`);
-                    return;
-                }
+                if (word[0] !== lastChar) { showError(`'${lastChar}'(으)로 시작하는 단어를 입력하세요!`); return; }
             }
-            
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'rooms', currentRoomId, 'history'), {
-                    word, 
-                    userId: currentUser.uid, 
-                    userName: currentUser.displayName,
-                    createdAt: serverTimestamp()
+                    word, userId: currentUser.uid, userName: currentUser.displayName, createdAt: serverTimestamp()
                 });
-                wordInput.value = ''; 
-                hideError();
-            } catch (err) { 
-                console.error(err); 
-                showError("전송 오류가 발생했습니다.");
-            }
+                wordInput.value = ''; hideError();
+            } catch (err) { showError("전송 오류 발생"); }
         };
 
         const openModal = () => createModal.classList.remove('hidden');
-        const closeModal = () => {
-            createModal.classList.add('hidden');
-            document.getElementById('room-title-input').value = '';
-        };
-        const showError = (msg) => { 
-            const e = document.getElementById('error-msg'); 
-            e.innerText = msg; 
-            e.classList.remove('hidden'); 
-            setTimeout(() => e.classList.add('hidden'), 3000);
-        };
+        const closeModal = () => { createModal.classList.add('hidden'); document.getElementById('room-title-input').value = ''; };
+        const showError = (msg) => { const e = document.getElementById('error-msg'); e.innerText = msg; e.classList.remove('hidden'); };
         const hideError = () => document.getElementById('error-msg').classList.add('hidden');
 
         document.getElementById('btn-open-create').onclick = openModal;
