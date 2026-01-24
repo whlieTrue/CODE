@@ -14,6 +14,7 @@
         .hidden { display: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade { animation: fadeIn 0.3s ease-out forwards; }
+        .timer-bar { transition: width 0.1s linear; }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
@@ -22,28 +23,27 @@
     <div id="lobby-screen" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 animate-fade">
         <div class="flex justify-between items-center mb-8">
             <div>
-                <h1 class="text-3xl font-black text-indigo-600">Word Relay Lobby</h1>
-                <p class="text-gray-500">방을 만들거나 선택하여 게임에 참여하세요.</p>
+                <h1 class="text-3xl font-black text-indigo-600 italic">Word Relay</h1>
+                <p class="text-gray-500">방을 선택하여 실시간 대결에 참여하세요.</p>
             </div>
             <button id="btn-open-create" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg transition-all">방 만들기</button>
         </div>
         
         <div id="room-list" class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[400px] overflow-y-auto pr-2">
-            <!-- 방 목록이 여기에 동적으로 렌더링됨 -->
             <div class="col-span-full flex flex-col items-center justify-center text-gray-400 h-full">
-                <p>현재 열린 방이 없습니다.</p>
+                <p>방 목록을 불러오는 중...</p>
             </div>
         </div>
     </div>
 
     <!-- 방 만들기 모달 -->
-    <div id="create-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50">
+    <div id="create-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden z-50 p-4">
         <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-fade">
             <h2 class="text-2xl font-bold mb-6 text-gray-800">새 게임 설정</h2>
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-gray-600 mb-1">방 제목</label>
-                    <input type="text" id="room-title-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="즐거운 끝말잇기!">
+                    <input type="text" id="room-title-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="매너 게임 합시다!">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -55,13 +55,21 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-600 mb-1">특별 룰</label>
-                        <select id="rule-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="none">기본 (자유)</option>
-                            <option value="exact3">3글자 고정</option>
-                            <option value="min2">2글자 이상</option>
+                        <label class="block text-sm font-semibold text-gray-600 mb-1">시간 제한</label>
+                        <select id="time-limit-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="5">5초 (매우 빠름)</option>
+                            <option value="10" selected>10초 (보통)</option>
+                            <option value="20">20초 (여유)</option>
                         </select>
                     </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-600 mb-1">특별 룰</label>
+                    <select id="rule-input" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="none">기본 (자유)</option>
+                        <option value="exact3">3글자 고정</option>
+                        <option value="min2">2글자 이상</option>
+                    </select>
                 </div>
             </div>
             <div class="flex gap-3 mt-8">
@@ -72,21 +80,26 @@
     </div>
 
     <!-- 게임 화면 -->
-    <div id="game-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[700px] hidden animate-fade">
-        <div class="bg-indigo-600 p-4 text-white">
+    <div id="game-screen" class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[700px] hidden animate-fade relative">
+        <!-- 타이머 프로그레스 바 -->
+        <div class="absolute top-0 left-0 w-full h-1 bg-gray-100 z-10">
+            <div id="timer-progress" class="timer-bar h-full bg-red-500 w-full"></div>
+        </div>
+
+        <div class="bg-indigo-600 pt-5 pb-4 px-4 text-white">
             <div class="flex justify-between items-center">
                 <button id="btn-exit" class="text-indigo-200 hover:text-white transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
                 </button>
                 <div class="text-center">
-                    <h2 id="display-room-title" class="font-bold">Room Name</h2>
-                    <p id="display-room-info" class="text-[10px] opacity-80 uppercase tracking-widest">RULE: NONE • 0/4 PLAYERS</p>
+                    <h2 id="display-room-title" class="font-bold text-sm truncate w-40 text-center">Room Name</h2>
+                    <p id="display-room-info" class="text-[10px] opacity-80 uppercase tracking-widest mt-0.5">RULE: NONE • 0/4 PLAYERS</p>
                 </div>
-                <div class="w-6"></div>
+                <div id="room-timer-text" class="font-mono text-xs bg-black/20 px-2 py-1 rounded">10.0s</div>
             </div>
         </div>
 
-        <div class="p-6 bg-indigo-50 text-center relative">
+        <div class="p-6 bg-indigo-50 text-center relative border-b border-indigo-100">
             <div class="text-xs font-bold text-indigo-400 mb-1">CURRENT WORD</div>
             <div id="current-word" class="text-4xl font-black text-indigo-900 drop-shadow-sm italic">...</div>
         </div>
@@ -97,8 +110,8 @@
 
         <div class="p-4 bg-white border-t border-gray-100">
             <form id="word-form" class="flex gap-2">
-                <input type="text" id="word-input" placeholder="입력하세요..." class="flex-1 px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner">
-                <button type="submit" class="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg active:scale-95 transition-all">전송</button>
+                <input type="text" id="word-input" placeholder="단어를 입력하세요..." class="flex-1 px-5 py-4 rounded-2xl border border-gray-100 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner">
+                <button type="submit" class="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-bold hover:bg-indigo-700 shadow-lg active:scale-95 transition-all">전송</button>
             </form>
             <p id="error-msg" class="text-red-500 text-xs mt-3 font-medium text-center hidden"></p>
         </div>
@@ -119,8 +132,13 @@
         let currentRoomId = null;
         let currentRoomData = null;
         let lastWord = "";
+        let usedWords = new Set();
         let unsubscribeRoom = null;
         let unsubscribeHistory = null;
+        
+        // Timer Variables
+        let timerInterval = null;
+        let timeLeft = 0;
 
         // UI Elements
         const lobbyScreen = document.getElementById('lobby-screen');
@@ -130,6 +148,8 @@
         const wordInput = document.getElementById('word-input');
         const historyContainer = document.getElementById('history-container');
         const currentWordDisplay = document.getElementById('current-word');
+        const timerProgressBar = document.getElementById('timer-progress');
+        const timerText = document.getElementById('room-timer-text');
 
         // Auth
         const initAuth = async () => {
@@ -164,11 +184,14 @@
                     card.className = "p-6 bg-slate-50 border border-slate-200 rounded-2xl hover:border-indigo-400 hover:bg-white transition-all cursor-pointer group shadow-sm";
                     card.innerHTML = `
                         <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">${room.title}</h3>
+                            <h3 class="font-bold text-gray-800 group-hover:text-indigo-600 transition-colors truncate w-32">${room.title}</h3>
                             <span class="text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded-lg font-bold">${room.playerCount || 0}/${room.maxPlayers}</span>
                         </div>
-                        <p class="text-xs text-gray-500 mb-4 uppercase tracking-tighter">Rule: ${room.rule === 'exact3' ? '3글자 고정' : (room.rule === 'min2' ? '2글자 이상' : '기본')}</p>
-                        <button class="w-full py-2 bg-white border border-indigo-200 rounded-xl text-indigo-600 font-bold group-hover:bg-indigo-600 group-hover:text-white transition-all">입장하기</button>
+                        <div class="flex flex-wrap gap-1 mb-4">
+                            <span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase font-bold">⏱ ${room.timeLimit || 10}s</span>
+                            <span class="text-[9px] bg-indigo-50 text-indigo-400 px-1.5 py-0.5 rounded uppercase font-bold">${room.rule === 'exact3' ? '3글자' : (room.rule === 'min2' ? '2글자+' : '기본')}</span>
+                        </div>
+                        <button class="w-full py-2 bg-white border border-indigo-200 rounded-xl text-indigo-600 font-bold group-hover:bg-indigo-600 group-hover:text-white transition-all">참여하기</button>
                     `;
                     card.onclick = () => joinRoom(room.id);
                     roomList.appendChild(card);
@@ -180,6 +203,7 @@
         const createRoom = async () => {
             const title = document.getElementById('room-title-input').value.trim() || "즐거운 게임";
             const maxPlayers = parseInt(document.getElementById('max-players-input').value);
+            const timeLimit = parseInt(document.getElementById('time-limit-input').value);
             const rule = document.getElementById('rule-input').value;
 
             try {
@@ -187,6 +211,7 @@
                 const newRoom = await addDoc(roomsRef, {
                     title,
                     maxPlayers,
+                    timeLimit,
                     rule,
                     hostId: currentUser.uid,
                     playerCount: 1,
@@ -239,7 +264,6 @@
                 
                 if (newPlayers.length === 0) {
                     await deleteDoc(roomRef);
-                    // 삭제 시 해당 방의 히스토리도 지우는 로직이 필요할 수 있으나 생략 (RULE 1 준수)
                 } else {
                     await updateDoc(roomRef, {
                         players: newPlayers,
@@ -251,7 +275,48 @@
 
             stopListeners();
             currentRoomId = null;
+            clearInterval(timerInterval);
             showLobbyScreen();
+        };
+
+        // Timer Logic
+        const resetTimer = () => {
+            clearInterval(timerInterval);
+            if (!currentRoomData) return;
+            
+            const limit = currentRoomData.timeLimit || 10;
+            timeLeft = limit;
+            
+            timerInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                if (timeLeft <= 0) {
+                    timeLeft = 0;
+                    clearInterval(timerInterval);
+                    handleTimeOut();
+                }
+                updateTimerUI(limit);
+            }, 100);
+        };
+
+        const updateTimerUI = (limit) => {
+            const percentage = (timeLeft / limit) * 100;
+            timerProgressBar.style.width = `${percentage}%`;
+            timerText.innerText = `${timeLeft.toFixed(1)}s`;
+            
+            // 색상 변화
+            if (percentage < 30) {
+                timerProgressBar.classList.replace('bg-indigo-400', 'bg-red-500');
+                timerProgressBar.classList.add('bg-red-500');
+            } else {
+                timerProgressBar.classList.remove('bg-red-500');
+                timerProgressBar.classList.add('bg-indigo-400');
+            }
+        };
+
+        const handleTimeOut = () => {
+            showError("시간이 초과되었습니다! 게임을 다시 시작하려면 단어를 입력하세요.");
+            currentWordDisplay.innerText = "TIME OUT";
+            lastWord = "";
         };
 
         // Game Listeners
@@ -273,7 +338,12 @@
             unsubscribeHistory = onSnapshot(historyRef, (snap) => {
                 const logs = snap.docs.map(d => d.data());
                 logs.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+                
+                // 중복 단어 추적을 위해 Set 업데이트
+                usedWords = new Set(logs.map(log => log.word));
+                
                 updateGameUI(logs);
+                resetTimer(); // 새 단어가 올 때마다 타이머 리셋
             });
         };
 
@@ -310,6 +380,12 @@
             const word = wordInput.value.trim();
             if (!word) return;
 
+            // 중복 단어 체크
+            if (usedWords.has(word)) {
+                showError("이미 사용된 단어입니다!");
+                return;
+            }
+
             // 룰 검증
             if (currentRoomData.rule === 'exact3' && word.length !== 3) {
                 showError("3글자 단어만 가능합니다!");
@@ -321,7 +397,7 @@
             }
 
             // 끝말잇기 검증
-            if (lastWord) {
+            if (lastWord && lastWord !== "TIME OUT") {
                 if (lastWord[lastWord.length - 1] !== word[0]) {
                     showError(`'${lastWord[lastWord.length - 1]}'로 시작해야 합니다!`);
                     return;
