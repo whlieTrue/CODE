@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Void Lobby</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            color: #e0e0e0;
+            background-color: #050508;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* 입장 전 화면 덮개 */
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            cursor: pointer;
+            transition: opacity 1.5s ease;
+        }
+
+        #overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .enter-text {
+            font-size: 1.5em;
+            letter-spacing: 10px;
+            color: #444;
+            animation: pulse 2s infinite;
+        }
+
+        /* 메인 로비 컨테이너 */
+        .lobby-container {
+            text-align: center;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 2s ease;
+        }
+
+        .lobby-container.show {
+            opacity: 1;
+        }
+
+        h1 {
+            font-size: 4em;
+            letter-spacing: 8px;
+            margin-bottom: 20px;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
+        .button-group button {
+            background: transparent;
+            color: #888;
+            border: 1px solid #333;
+            padding: 15px 40px;
+            margin: 10px;
+            cursor: pointer;
+            transition: 0.5s;
+        }
+
+        .button-group button:hover {
+            color: #fff;
+            border-color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* --- 설정 모달 스타일 --- */
+        #settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: none; /* 기본은 숨김 */
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: #0a0a12;
+            padding: 40px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            text-align: center;
+            width: 300px;
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            letter-spacing: 4px;
+            font-size: 1.5em;
+        }
+
+        .volume-control {
+            margin: 30px 0;
+        }
+
+        /* 슬라이더 커스텀 */
+        input[type=range] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: #fff; /* 슬라이더 색상 */
+        }
+
+        .close-btn {
+            background: #fff !important;
+            color: #000 !important;
+            border: none !important;
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.2; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.2; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="overlay" onclick="startLobby()">
+        <div class="enter-text">CLICK TO ENTER THE MUS</div>
+    </div>
+
+    <div class="lobby-container" id="lobby">
+        <h1>THE MUS</h1>
+        <div class="button-group">
+            <button onclick="location.href='choosegame.html'">START</button>
+            <button onclick="openSettings()">SETTING</button>
+            <button onclick="window.close()">EXIT</button>
+        </div>
+    </div>
+
+    <div id="settings-modal">
+        <div class="modal-content">
+            <h2>SETTINGS</h2>
+            <div class="volume-control">
+                <p>BGM VOLUME</p>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.5">
+            </div>
+            <button class="close-btn" onclick="closeSettings()">SAVE & CLOSE</button>
+        </div>
+    </div>
+
+    <audio id="bgm" loop>
+        <source src="로비음악.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const bgm = document.getElementById('bgm');
+        const modal = document.getElementById('settings-modal');
+        const volumeSlider = document.getElementById('volumeSlider');
+
+        function startLobby() {
+            const overlay = document.getElementById('overlay');
+            const lobby = document.getElementById('lobby');
+
+            bgm.play().catch(error => {
+                console.log("재생 오류:", error);
+            });
+
+            overlay.classList.add('fade-out');
+            lobby.classList.add('show');
+        }
+
+        // 설정 열기
+        function openSettings() {
+            modal.style.display = "flex";
+        }
+
+        // 설정 닫기
+        function closeSettings() {
+            modal.style.display = "none";
+        }
+
+        // 볼륨 조절 실시간 감지
+        volumeSlider.addEventListener('input', function() {
+            bgm.volume = this.value;
+        });
+    </script>
+</body>
+
+
+</html>
