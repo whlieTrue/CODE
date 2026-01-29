@@ -112,8 +112,8 @@
             const card = document.createElement('div');
             card.className = 'episode-card';
 
-            // 클릭 이벤트: 에피소드 파일로 이동
-            card.onclick = () => location.href = "${i}e.html";
+            // 파일 경로 앞에 /CODE/ 를 붙여서 절대적인 위치를 지정합니다.
+            card.onclick = () => location.href = `/CODE/${i}e.html`;
 
             // 마우스 호버 이벤트: 효과음 재생
             card.onmouseenter = () => playHoverSound();
