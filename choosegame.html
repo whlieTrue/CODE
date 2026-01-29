@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>The MUS - Choose Episode</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #050508;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h2 {
+            margin-top: 50px;
+            letter-spacing: 10px;
+            font-weight: 100;
+            color: #666;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            padding: 40px;
+            max-width: 1000px;
+        }
+
+        .episode-card {
+            width: 150px;
+            height: 220px;
+            border: 1px solid #1a1a1a;
+            background: rgba(255, 255, 255, 0.02);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.4s;
+            position: relative;
+        }
+
+        .episode-card:hover {
+            border-color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-5px);
+        }
+
+        .episode-card .num {
+            font-size: 0.8em;
+            color: #444;
+            margin-bottom: 10px;
+        }
+
+        .episode-card:hover .num {
+            color: #fff;
+        }
+
+        .episode-card .status {
+            font-size: 0.7em;
+            color: #222;
+            letter-spacing: 2px;
+        }
+
+        .episode-card:hover .status {
+            color: #666;
+        }
+
+        .back-btn {
+            margin-top: 30px;
+            background: none;
+            border: none;
+            color: #444;
+            cursor: pointer;
+            letter-spacing: 3px;
+            transition: 0.3s;
+            padding: 20px;
+        }
+
+        .back-btn:hover {
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>EPISODES</h2>
+    <div class="grid-container" id="grid">
+    </div>
+    <button class="back-btn" onclick="location.href='index.html'">BACK TO LOBBY</button>
+
+    <audio id="hoverSound">
+        <source src="에피소드선택.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const grid = document.getElementById('grid');
+        const hoverSound = document.getElementById('hoverSound');
+
+        // 사운드 재생 함수 (중복 재생 시 끊김 방지를 위해 처음으로 되감기 포함)
+        function playHoverSound() {
+            hoverSound.currentTime = 0; // 재생 위치를 처음으로 초기화
+            hoverSound.play().catch(e => console.log("Sound play blocked: ", e));
+        }
+
+        for (let i = 1; i <= 10; i++) {
+            const card = document.createElement('div');
+            card.className = 'episode-card';
+
+            // 클릭 이벤트: 에피소드 파일로 이동
+            card.onclick = () => location.href = `에피소드/${i}e.html`;
+
+            // 마우스 호버 이벤트: 효과음 재생
+            card.onmouseenter = () => playHoverSound();
+
+            card.innerHTML = `
+                <div class="num">${i.toString().padStart(2, '0')}</div>
+                <div class="status">PLAY</div>
+            `;
+            grid.appendChild(card);
+        }
+    </script>
+</body>
+
+
+</html>
