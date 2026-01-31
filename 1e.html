@@ -9,8 +9,6 @@
             overflow: hidden; background: #000;
             font-family: 'Courier New', Courier, monospace;
         }
-
-        /* --- 터미널 스타일 --- */
         #terminal {
             width: 100%; height: 100%; background: #000; color: #0f0;
             padding: 30px; box-sizing: border-box; font-size: 18px;
@@ -35,8 +33,6 @@
             80% { transform: translate(2px, -2px); }
             100% { transform: translate(0); }
         }
-
-        /* --- Three.js 게임 UI --- */
         #game-container { display: none; width: 100%; height: 100%; position: relative; }
         #crosshair {
             position: absolute; top: 50%; left: 50%;
@@ -72,7 +68,7 @@
     <div id="game-container">
         <div id="game-ui">
             <h1 style="margin:0;">|MUS| EPISOD-1</h1>
-            <p id="objective">>>> 목표: 방 안의 단서를 조사하십시오. (W,A,S,D 이동 / F 상호작용)</p>
+            <p id="objective">>>> 목표: 방 안을 조사하고 탈출구를 찾으십시오.</p>
         </div>
         <div id="crosshair"></div>
         <div id="dialogue"></div>
@@ -91,7 +87,6 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // --- 전역 변수 설정 ---
         let scene, camera, renderer, controls, raycaster;
         let moveState = { forward: false, backward: false, left: false, right: false };
         let velocity = new THREE.Vector3();
@@ -100,58 +95,37 @@
         let highlightedObject = null;
         const outlineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide });
 
-        // --- 터미널 관련 함수 (기존 코드 유지) ---
+        // --- 터미널 (이전 유지) ---
         window.initSequence = async function() {
             const logArea = document.getElementById('log');
             const terminal = document.getElementById('terminal');
             const bootLogs = ["INITIALIZING SYSTEM...", "LOADING NEURAL NETWORK...", "DECODING SURVIVOR_LOG_#042..."];
-            
             for (let log of bootLogs) {
                 const d = document.createElement('div');
-                d.className = "log-line system-msg";
-                d.textContent = `> ${log}`;
-                logArea.appendChild(d);
-                await new Promise(r => setTimeout(r, 400));
+                d.className = "log-line system-msg"; d.textContent = `> ${log}`;
+                logArea.appendChild(d); await new Promise(r => setTimeout(r, 400));
             }
-
-            const introLines = ["대충 멸망", "난 이 세계를 탈출할 거다."];
-            for (let line of introLines) {
-                await typeWriter(line, logArea, terminal);
-                await new Promise(r => setTimeout(r, 800));
-            }
+            const introLines = ["이 세계는 AI의 잘못된 발달로 인한 인간의 멸종이 일어났다.", "난 이 세계를 탈출할 거다."];
+            for (let line of introLines) { await typeWriter(line, logArea, terminal); await new Promise(r => setTimeout(r, 800)); }
             document.getElementById('choice-container').style.display = "block";
         }
 
         function typeWriter(text, area, term) {
             return new Promise(resolve => {
-                const div = document.createElement('div');
-                div.className = "log-line narrative-msg";
-                area.appendChild(div);
-                let i = 0;
-                function type() {
-                    if (i < text.length) {
-                        div.textContent += text.charAt(i);
-                        i++;
-                        term.scrollTop = term.scrollHeight;
-                        setTimeout(type, 50);
-                    } else { resolve(); }
-                }
+                const div = document.createElement('div'); div.className = "log-line narrative-msg";
+                area.appendChild(div); let i = 0;
+                function type() { if (i < text.length) { div.textContent += text.charAt(i); i++; term.scrollTop = term.scrollHeight; setTimeout(type, 50); } else { resolve(); } }
                 type();
             });
         }
 
         window.glitchButton = function() {
             const leaveBtn = document.getElementById('leave-btn');
-            leaveBtn.classList.add('glitch');
-            leaveBtn.textContent = "[오류: 접근 불가]";
-            setTimeout(() => {
-                leaveBtn.classList.remove('glitch');
-                leaveBtn.textContent = "[시스템 접속]";
-                leaveBtn.onclick = startGame;
-            }, 1000);
+            leaveBtn.classList.add('glitch'); leaveBtn.textContent = "[오류: 접근 불가]";
+            setTimeout(() => { leaveBtn.classList.remove('glitch'); leaveBtn.textContent = "[시스템 접속]"; leaveBtn.onclick = startGame; }, 1000);
         }
 
-        // --- 게임 시작 및 Three.js 초기화 ---
+        // --- 게임 시작 ---
         window.startGame = function() {
             document.getElementById('terminal').style.display = 'none';
             document.getElementById('game-container').style.display = 'block';
@@ -161,55 +135,50 @@
 
         function initThreeJS() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x333333);
-            scene.fog = new THREE.Fog(0x333333, 1, 20);
+            scene.background = new THREE.Color(0x444444);
+            scene.fog = new THREE.Fog(0x444444, 1, 15);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.getElementById('game-container').appendChild(renderer.domElement);
 
-            // 조명
-            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-            const light = new THREE.PointLight(0xffffff, 30, 15);
-            light.position.set(0, 4, 0);
-            scene.add(light);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const light = new THREE.PointLight(0xffffff, 30, 15); light.position.set(0, 4, 0); scene.add(light);
 
-            // 컨트롤
             controls = new PointerLockControls(camera, document.body);
             document.addEventListener('click', () => controls.lock());
 
-            // 방
+            // 1. 방 바닥 및 벽 (충돌 판정 시각화용)
             const room = new THREE.Mesh(
                 new THREE.BoxGeometry(10, 5, 10), 
-                new THREE.MeshStandardMaterial({ color: 0x666666, side: THREE.BackSide })
+                new THREE.MeshStandardMaterial({ color: 0x888888, side: THREE.BackSide })
             );
             scene.add(room);
 
-            // 상호작용 아이템 생성 함수
+            // 2. 상호작용 아이템 생성 함수
             function createItem(geo, mat, pos, name, msg) {
                 const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.copy(pos);
-                mesh.name = name;
-                mesh.userData = { message: msg };
-                
-                const outline = new THREE.Mesh(geo, outlineMat);
-                outline.scale.multiplyScalar(1.08);
-                outline.position.copy(pos);
-                outline.visible = false;
-                mesh.userData.outline = outline;
-
-                scene.add(mesh, outline);
+                mesh.position.copy(pos); mesh.name = name; mesh.userData = { message: msg };
+                const outline = new THREE.Mesh(geo, outlineMat); outline.scale.multiplyScalar(1.08); outline.position.copy(pos); outline.visible = false;
+                mesh.userData.outline = outline; scene.add(mesh, outline);
                 interactableObjects.push(mesh);
             }
 
-            // 아이템 배치
+            // 아이템 배치 (메모, TV)
             createItem(new THREE.BoxGeometry(0.3, 0.02, 0.3), new THREE.MeshStandardMaterial({color: 0xffff00}), new THREE.Vector3(-2, -2.48, -1), "memo", '"밖으로 나가면 안 돼"');
-            createItem(new THREE.BoxGeometry(1.6, 1, 0.2), new THREE.MeshStandardMaterial({color: 0x111111}), new THREE.Vector3(0, -1.2, -4.8), "tv", "기괴한 노이즈가 화면을 채우고 있다.");
+            createItem(new THREE.BoxGeometry(1.6, 1, 0.2), new THREE.MeshStandardMaterial({color: 0x111111}), new THREE.Vector3(0, -1.2, -4.8), "tv", "TV는 죽어있다.");
+
+            // 3. 문 (Door) 생성
+            createItem(
+                new THREE.BoxGeometry(1.5, 3, 0.1), 
+                new THREE.MeshStandardMaterial({color: 0x3d2b1f}), 
+                new THREE.Vector3(4.8, -1, 0), 
+                "door", 
+                "문이 굳게 잠겨있다... 하지만 무언가 일어날 것 같다."
+            );
 
             raycaster = new THREE.Raycaster();
-
-            // 키보드 이벤트
             document.addEventListener('keydown', onKeyDown);
             document.addEventListener('keyup', onKeyUp);
         }
@@ -250,10 +219,16 @@
                 const dirX = Number(moveState.right) - Number(moveState.left);
                 if (dirZ !== 0) velocity.z -= dirZ * 40.0 * delta;
                 if (dirX !== 0) velocity.x -= dirX * 40.0 * delta;
+
                 controls.moveRight(-velocity.x * delta);
                 controls.moveForward(-velocity.z * delta);
 
-                // 상호작용 하이라이트 체크
+                // --- 벽 충돌 판정 (방 경계 제한) ---
+                const limit = 4.5; // 방 크기 10의 절반에서 플레이어 두께 제외
+                camera.position.x = Math.max(-limit, Math.min(limit, camera.position.x));
+                camera.position.z = Math.max(-limit, Math.min(limit, camera.position.z));
+
+                // 하이라이트 체크
                 raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
                 const hits = raycaster.intersectObjects(interactableObjects);
                 if (hits.length > 0 && hits[0].distance < 3) {
@@ -278,11 +253,7 @@
 
         window.onload = initSequence;
         window.addEventListener('resize', () => {
-            if (camera) {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            }
+            if (camera) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
         });
     </script>
 </body>
