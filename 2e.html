@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <title>|MUS| EPISOD-1</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; cursor: crosshair; }
+        body { margin: 0; overflow: hidden; background: #222; cursor: crosshair; }
         #ui {
             position: absolute; top: 40px; left: 40px;
             color: #ff3333; font-family: 'Courier New', monospace;
@@ -12,32 +12,32 @@
         }
         #crosshair {
             position: absolute; top: 50%; left: 50%;
-            width: 8px; height: 8px; border: 1px solid rgba(255,255,255,0.8);
+            width: 6px; height: 6px; border: 2px solid rgba(255,255,255,0.9);
             border-radius: 50%; transform: translate(-50%, -50%);
+            transition: all 0.1s;
         }
-        /* 상호작용 메시지 창 */
         #dialogue {
             position: absolute; bottom: 15%; left: 50%;
             transform: translateX(-50%); color: white;
             font-family: 'Courier New', monospace; font-size: 18px;
             background: rgba(0,0,0,0.8); padding: 15px 30px;
             border: 1px solid #ff3333; border-radius: 5px;
-            display: none; /* 기본적으로는 숨김 */
+            display: none; z-index: 10;
         }
         #instructions {
             position: absolute; bottom: 20px; left: 20px;
-            color: rgba(255,255,255,0.5); font-family: sans-serif; font-size: 12px;
+            color: rgba(255,255,255,0.7); font-family: sans-serif; font-size: 12px;
         }
     </style>
 </head>
 <body>
     <div id="ui">
         <h1 style="margin:0;">|MUS| EPISOD-1</h1>
-        <p id="objective">>>> 목표: 바닥의 쪽지를 확인하십시오.</p>
+        <p id="objective">>>> 목표: 방 안의 단서를 조사하십시오.</p>
     </div>
     <div id="crosshair"></div>
-    <div id="dialogue">메시지 내용</div>
-    <div id="instructions">클릭: 조작 | W,A,S,D: 이동 | F: 상호작용 | ESC: 일시정지</div>
+    <div id="dialogue"></div>
+    <div id="instructions">클릭: 조작 시작 | W,A,S,D: 이동 | F: 상호작용(아이템 조준 시 외곽선 발생)</div>
 
     <script type="importmap">
         {
@@ -52,87 +52,88 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // --- 1. 기본 씬 (밝기 상향) ---
+        // --- 1. 기본 씬 설정 (방 밝기 향상) ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x111111); // 배경색 약간 밝게
-        scene.fog = new THREE.Fog(0x111111, 1, 20);
+        scene.background = new THREE.Color(0x444444); // 밝은 회색 배경
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // --- 2. 조명 (더 밝게 조정) ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5); // 전체 밝기 증가
+        // --- 2. 조명 (매우 밝게 설정) ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
         scene.add(ambientLight);
 
-        const mainLight = new THREE.PointLight(0xffffff, 20, 15);
+        const mainLight = new THREE.PointLight(0xffffff, 30, 20);
         mainLight.position.set(0, 4, 0);
         scene.add(mainLight);
 
-        // --- 3. 방 ---
+        // --- 3. 방 구조 ---
         const room = new THREE.Mesh(
             new THREE.BoxGeometry(10, 5, 10), 
-            new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.BackSide })
+            new THREE.MeshStandardMaterial({ color: 0x888888, side: THREE.BackSide })
         );
         scene.add(room);
 
-        // --- 4. 사물 배치 ---
-        const interactableObjects = []; // 상호작용 가능한 물체들을 담는 배열
+        // --- 4. 외곽선 효과 전용 머티리얼 ---
+        const outlineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide });
 
-        // 노란색 포스트잇 (메모)
-        const memoGeo = new THREE.PlaneGeometry(0.2, 0.2);
-        const memoMat = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }); // 노란색
-        const memo = new THREE.Mesh(memoGeo, memoMat);
-        memo.position.set(-2, -2.48, -1);
-        memo.rotation.x = Math.PI / 2;
-        memo.name = "memo";
-        memo.userData = { message: '"밖으로 나가면 안 돼"' }; // 상호작용 시 뜰 대사
-        scene.add(memo);
-        interactableObjects.push(memo);
+        // --- 5. 사물 및 상호작용 설정 ---
+        const interactableObjects = [];
+        let highlightedObject = null;
 
-        // TV (조사 가능하게 설정)
-        const tvGroup = new THREE.Group();
-        const tvBody = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 0.2), new THREE.MeshStandardMaterial({color: 0x000000}));
-        tvBody.position.set(0, 0.9, 0);
-        tvBody.name = "tv";
-        tvBody.userData = { message: "TV에서 기괴한 노이즈가 흐르고 있다..." };
-        tvGroup.add(tvBody);
-        tvGroup.position.set(0, -2.1, -4.5);
-        scene.add(tvGroup);
-        interactableObjects.push(tvBody);
+        function createInteractable(geometry, material, position, name, message) {
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.copy(position);
+            mesh.name = name;
+            mesh.userData = { message: message };
+            
+            // 외곽선용 메쉬 생성 (살짝 더 크게)
+            const outline = new THREE.Mesh(geometry, outlineMat);
+            outline.scale.multiplyScalar(1.05);
+            outline.position.copy(position);
+            outline.visible = false;
+            
+            mesh.userData.outline = outline;
+            scene.add(mesh, outline);
+            interactableObjects.push(mesh);
+            return mesh;
+        }
 
-        // 거울
-        const mirror = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.5), new THREE.MeshBasicMaterial({color: 0x444444}));
-        mirror.position.set(3, 0, -4.95);
-        scene.add(mirror);
+        // 포스트잇
+        createInteractable(
+            new THREE.BoxGeometry(0.3, 0.01, 0.3),
+            new THREE.MeshStandardMaterial({ color: 0xffff00 }),
+            new THREE.Vector3(-2, -2.48, -1),
+            "memo",
+            '"밖으로 나가면 안 돼"'
+        );
 
-        const mirrorGhost = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.7, 0.2), new THREE.MeshStandardMaterial({color: 0x330000}));
-        scene.add(mirrorGhost);
+        // TV
+        createInteractable(
+            new THREE.BoxGeometry(1.6, 1, 0.2),
+            new THREE.MeshStandardMaterial({ color: 0x111111 }),
+            new THREE.Vector3(0, -1.2, -4.8),
+            "tv",
+            "지직거리는 노이즈가 가득하다."
+        );
 
-        // --- 5. 플레이어 컨트롤 및 상호작용 로직 ---
+        // --- 6. 조작 및 이동 로직 ---
         const controls = new PointerLockControls(camera, document.body);
         document.addEventListener('click', () => controls.lock());
 
         const moveState = { forward: false, backward: false, left: false, right: false };
         const velocity = new THREE.Vector3();
         let prevTime = performance.now();
-        const history = [];
-
-        // F키 상호작용을 위한 Raycaster
         const raycaster = new THREE.Raycaster();
-        const dialogueUI = document.getElementById('dialogue');
 
         document.addEventListener('keydown', (e) => {
             if(e.code === 'KeyW') moveState.forward = true;
             if(e.code === 'KeyS') moveState.backward = true;
             if(e.code === 'KeyA') moveState.left = true;
             if(e.code === 'KeyD') moveState.right = true;
-            
-            // F키 눌렀을 때 상호작용
-            if(e.code === 'KeyF' && controls.isLocked) {
-                checkInteraction();
-            }
+            if(e.code === 'KeyF' && controls.isLocked) checkClickInteraction();
         });
 
         document.addEventListener('keyup', (e) => {
@@ -142,24 +143,37 @@
             if(e.code === 'KeyD') moveState.right = false;
         });
 
-        function checkInteraction() {
-            // 화면 중앙에서 레이저를 쏨
+        // 매 프레임 조준점 체크 (외곽선 활성화)
+        function checkHover() {
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
             const intersects = raycaster.intersectObjects(interactableObjects);
 
-            if (intersects.length > 0) {
-                const obj = intersects[0];
-                if (obj.distance < 2.5) { // 거리가 2.5 이내일 때만 상호작용 가능
-                    showDialogue(obj.object.userData.message);
+            if (intersects.length > 0 && intersects[0].distance < 3) {
+                const target = intersects[0].object;
+                if (highlightedObject !== target) {
+                    if (highlightedObject) highlightedObject.userData.outline.visible = false;
+                    highlightedObject = target;
+                    highlightedObject.userData.outline.visible = true;
+                    document.getElementById('crosshair').style.borderColor = "#ff3333";
+                    document.getElementById('crosshair').style.transform = "translate(-50%, -50%) scale(1.5)";
+                }
+            } else {
+                if (highlightedObject) {
+                    highlightedObject.userData.outline.visible = false;
+                    highlightedObject = null;
+                    document.getElementById('crosshair').style.borderColor = "rgba(255,255,255,0.9)";
+                    document.getElementById('crosshair').style.transform = "translate(-50%, -50%) scale(1)";
                 }
             }
         }
 
-        function showDialogue(text) {
-            dialogueUI.innerText = text;
-            dialogueUI.style.display = 'block';
-            // 3초 후 자동으로 사라짐
-            setTimeout(() => { dialogueUI.style.display = 'none'; }, 3000);
+        function checkClickInteraction() {
+            if (highlightedObject) {
+                const dialogueUI = document.getElementById('dialogue');
+                dialogueUI.innerText = highlightedObject.userData.message;
+                dialogueUI.style.display = 'block';
+                setTimeout(() => { dialogueUI.style.display = 'none'; }, 3000);
+            }
         }
 
         function animate() {
@@ -176,13 +190,8 @@
                 if (dirX !== 0) velocity.x -= dirX * 40.0 * delta;
                 controls.moveRight(-velocity.x * delta);
                 controls.moveForward(-velocity.z * delta);
-            }
-
-            history.push({ p: camera.position.clone(), r: camera.rotation.clone() });
-            if (history.length > 25) {
-                const oldFrame = history.shift();
-                mirrorGhost.position.set(oldFrame.p.x, oldFrame.p.y - 0.5, -4.6);
-                mirrorGhost.rotation.y = oldFrame.r.y + Math.PI;
+                
+                checkHover(); // 조준 중인 사물 강조
             }
 
             renderer.render(scene, camera);
