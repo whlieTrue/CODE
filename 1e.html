@@ -5,28 +5,23 @@
     <title>MUS - EPISODE 1</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
-        #terminal { width: 100%; height: 100%; background: #000; color: #0f0; padding: 30px; box-sizing: border-box; font-size: 18px; position: absolute; z-index: 100; }
-        #game-container { display: none; width: 100%; height: 100%; position: relative; }
+        /* 터미널이 게임 화면을 완전히 덮도록 설정 */
+        #terminal { width: 100%; height: 100%; background: #000; color: #0f0; padding: 30px; box-sizing: border-box; font-size: 18px; position: absolute; z-index: 200; display: flex; flex-direction: column; }
+        #game-container { display: none; width: 100%; height: 100%; position: relative; z-index: 10; }
         
         #game-ui { position: absolute; top: 20px; left: 20px; color: #ff3333; text-shadow: 2px 2px 5px #000; pointer-events: none; }
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); transition: 0.1s; pointer-events: none; }
-        #dialogue { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.8); padding: 15px 30px; border: 1px solid #ff3333; display: none; z-index: 10; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 8px; height: 8px; border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 20; }
+        #dialogue { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.8); padding: 15px 30px; border: 1px solid #ff3333; display: none; z-index: 50; }
         
-        #stamina-bar-container { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 200px; height: 10px; background: rgba(255,255,255,0.2); border: 1px solid #fff; }
+        #stamina-bar-container { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 200px; height: 8px; background: rgba(255,255,255,0.2); border: 1px solid #fff; }
         #stamina-bar { width: 100%; height: 100%; background: #ffdd44; }
 
-        #inventory { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 400px; background: rgba(20,20,20,0.95); border: 2px solid #fff; color: #fff; display: none; padding: 20px; box-sizing: border-box; z-index: 20; }
-        #esc-menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 30; }
+        #esc-menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         
-        .btn { background: transparent; border: 1px solid #0f0; color: #0f0; padding: 10px 20px; cursor: pointer; margin: 10px 0; display: block; width: 200px; font-family: inherit; font-size: 16px; text-align: center; }
-        .btn:hover { background: #0f0; color: #000; }
+        .btn { background: transparent; border: 1px solid #0f0; color: #0f0; padding: 12px 25px; cursor: pointer; margin: 10px 0; display: block; width: 220px; font-family: inherit; font-size: 16px; text-align: center; text-transform: uppercase; }
+        .btn:hover { background: #0f0; color: #000; box-shadow: 0 0 10px #0f0; }
         .glitch { animation: glitch-anim 0.2s infinite; color: #f00 !important; border-color: #f00 !important; }
-        @keyframes glitch-anim {
-            0% { transform: translate(0); }
-            20% { transform: translate(-2px, 2px); }
-            40% { transform: translate(-2px, -2px); }
-            100% { transform: translate(0); }
-        }
+        @keyframes glitch-anim { 0% { transform: translate(0); } 20% { transform: translate(-3px, 3px); } 40% { transform: translate(-3px, -3px); } 100% { transform: translate(0); } }
     </style>
 </head>
 <body>
@@ -42,18 +37,16 @@
     <div id="game-container">
         <div id="game-ui">
             <h2 style="margin:0;">|MUS| EPISODE-1</h2>
-            <p id="objective">>>> [튜토리얼] 물체(메모, TV)를 클릭하거나 F로 조사하십시오.</p>
+            <p id="objective">>>> [화면 클릭]하여 시작 (F/클릭: 조사)</p>
         </div>
         <div id="crosshair"></div>
         <div id="dialogue"></div>
         <div id="stamina-bar-container"><div id="stamina-bar"></div></div>
         
-        <div id="inventory"><h3>INVENTORY</h3><hr><p id="inv-status">비어 있음</p></div>
-        
         <div id="esc-menu">
-            <h1 style="color:#f00; letter-spacing: 10px;">PAUSED</h1>
-            <button class="btn" onclick="resumeGame()">계속하기</button>
-            <button class="btn" onclick="saveAndExit()">저장하고 나가기</button>
+            <h1 style="color:#f00; letter-spacing: 15px; margin-bottom:30px;">PAUSED</h1>
+            <button class="btn" onclick="resumeGame()">계속하기 (RESUME)</button>
+            <button class="btn" onclick="saveAndExit()">저장 후 종료 (EXIT)</button>
         </div>
     </div>
 
@@ -71,85 +64,90 @@
         let prevTime = performance.now();
         
         let stamina = 100;
-        let isInventoryOpen = false;
         let tutorialScore = 0;
         let interactables = [];
         let highlighted = null;
         let doorMesh;
 
-        // --- 터미널 및 글리치 로직 ---
+        // --- 인트로 로직 ---
         window.initSequence = async function() {
             const log = document.getElementById('log');
-            const lines = ["> INITIALIZING...", "> MISSION: FIND THE WAY OUT."];
+            const lines = ["> BOOTING...", "> ESTABLISHING NEURAL LINK...", "> READY TO CONNECT."];
             for(let l of lines) {
                 const d = document.createElement('div'); d.textContent = l; log.appendChild(d);
-                await new Promise(r => setTimeout(r, 300));
+                await new Promise(r => setTimeout(r, 400));
             }
             document.getElementById('choice-container').style.display = "block";
         }
 
         window.glitchButton = function() {
             const btn = document.getElementById('leave-btn');
-            btn.classList.add('glitch');
-            btn.textContent = "[오류: 접근 불가]";
-            setTimeout(() => {
-                btn.classList.remove('glitch');
-                btn.textContent = "[시스템 접속]";
-                btn.onclick = window.startGame;
-            }, 1000);
+            btn.classList.add('glitch'); btn.textContent = "[ACCESS DENIED]";
+            setTimeout(() => { btn.classList.remove('glitch'); btn.textContent = "[시스템 접속]"; btn.onclick = window.startGame; }, 1000);
         }
 
+        // 게임 시작 시 전체화면 요청 및 Three.js 초기화
         window.startGame = function() {
             document.getElementById('terminal').style.display = 'none';
             document.getElementById('game-container').style.display = 'block';
+            
+            // 전체화면 시도
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(e => console.log("전체화면 실패: ", e));
+            }
+            
             initThreeJS();
             animate();
         }
 
         function initThreeJS() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x222222);
+            scene.background = new THREE.Color(0x1a1a1a);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
             document.getElementById('game-container').appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+            const pointLight = new THREE.PointLight(0xffffff, 20, 15);
+            pointLight.position.set(0, 3, 0);
+            scene.add(pointLight);
+
             controls = new PointerLockControls(camera, document.body);
             
-            // 상호작용: 클릭 시에도 interact 실행
-            document.body.addEventListener('mousedown', () => {
-                if(controls.isLocked) interact();
-                else if(!isInventoryOpen && document.getElementById('esc-menu').style.display === 'none') {
+            // 핵심: 게임 컨테이너 클릭 시 조작 활성화
+            document.getElementById('game-container').addEventListener('mousedown', (e) => {
+                if (!controls.isLocked) {
                     controls.lock();
+                } else {
+                    interact(); // 조작 중일 때는 클릭이 상호작용 역할
                 }
             });
 
-            // 포인터 락 이벤트 감지 (PAUSED 메뉴 제어 핵심)
             controls.addEventListener('lock', () => {
                 document.getElementById('esc-menu').style.display = 'none';
+                document.getElementById('objective').innerText = ">>> 목표: 단서를 조사하십시오.";
             });
+
             controls.addEventListener('unlock', () => {
-                if(!isInventoryOpen) {
-                    document.getElementById('esc-menu').style.display = 'flex';
-                }
+                document.getElementById('esc-menu').style.display = 'flex';
             });
 
-            // 방 및 벽
-            const wallMat = new THREE.MeshStandardMaterial({color: 0x666666});
-            const floor = new THREE.Mesh(new THREE.BoxGeometry(10, 0.1, 10), new THREE.MeshStandardMaterial({color: 0x333333}));
-            floor.position.y = -2.5; scene.add(floor);
+            // 방 구조
+            const wallMat = new THREE.MeshStandardMaterial({color: 0x555555});
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(10, 0.1, 10), new THREE.MeshStandardMaterial({color: 0x222222}));
+            floor.position.y = -2; scene.add(floor);
 
-            const walls = [
-                {x: 0, z: -5.25, w: 10, d: 0.5}, {x: 0, z: 5.25, w: 10, d: 0.5},
-                {x: -5.25, z: 0, w: 0.5, d: 10}, {x: 5.25, z: 0, w: 0.5, d: 10}
-            ];
-            walls.forEach(v => {
-                const w = new THREE.Mesh(new THREE.BoxGeometry(v.w, 5, v.d), wallMat);
-                w.position.set(v.x, 0, v.z); scene.add(w);
-            });
+            const buildWall = (w, h, d, x, y, z) => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+                mesh.position.set(x, y, z); scene.add(mesh);
+            };
+            buildWall(10, 5, 0.5, 0, 0.5, -5.25); buildWall(10, 5, 0.5, 0, 0.5, 5.25);
+            buildWall(0.5, 5, 10, -5.25, 0.5, 0); buildWall(0.5, 5, 10, 5.25, 0.5, 0);
 
+            // 아이템
             const outlineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide });
             function addItem(geo, mat, pos, name, msg) {
                 const m = new THREE.Mesh(geo, mat); m.position.copy(pos); m.userData = { msg, id: name, viewed: false };
@@ -157,38 +155,26 @@
                 m.userData.outline = o; scene.add(m, o); interactables.push(m); return m;
             }
 
-            addItem(new THREE.BoxGeometry(0.3, 0.05, 0.3), new THREE.MeshStandardMaterial({color: 0xffff00}), new THREE.Vector3(-3, -2.4, -2), "memo", "조작: WASD, CTRL(달리기), E(인벤), F/클릭(조사)");
-            addItem(new THREE.BoxGeometry(1.5, 1, 0.2), new THREE.MeshStandardMaterial({color: 0x111111}), new THREE.Vector3(0, 0, -4.9), "tv", "TV: 아무것도 나오지 않는다.");
-            doorMesh = addItem(new THREE.BoxGeometry(0.1, 3.2, 1.8), new THREE.MeshStandardMaterial({color: 0x3d2b1f}), new THREE.Vector3(5.0, -0.9, 0), "door", "문: 굳게 닫혀있다.");
+            addItem(new THREE.BoxGeometry(0.3, 0.05, 0.3), new THREE.MeshStandardMaterial({color: 0xffff00}), new THREE.Vector3(-2.5, -1.95, -2), "memo", "메모: '현실은 보이는 것과 다르다.'");
+            addItem(new THREE.BoxGeometry(1.2, 0.8, 0.2), new THREE.MeshStandardMaterial({color: 0x000000}), new THREE.Vector3(0, 0.5, -4.9), "tv", "TV: 지직거리는 소리만 들린다.");
+            doorMesh = addItem(new THREE.BoxGeometry(0.1, 3.0, 1.5), new THREE.MeshStandardMaterial({color: 0x2a1a0a}), new THREE.Vector3(5.0, -0.4, 0), "door", "문: 굳게 잠겨있다.");
 
             raycaster = new THREE.Raycaster();
-            document.addEventListener('keydown', onKeyDown);
-            document.addEventListener('keyup', onKeyUp);
-        }
-
-        function onKeyDown(e) {
-            if(e.code === 'KeyW') moveState.w = true;
-            if(e.code === 'KeyA') moveState.a = true;
-            if(e.code === 'KeyS') moveState.s = true;
-            if(e.code === 'KeyD') moveState.d = true;
-            if(e.code === 'ControlLeft') moveState.ctrl = true;
-            if(e.code === 'KeyF') interact();
-            if(e.code === 'KeyE') toggleInventory();
-        }
-
-        function onKeyUp(e) {
-            if(e.code === 'KeyW') moveState.w = false;
-            if(e.code === 'KeyA') moveState.a = false;
-            if(e.code === 'KeyS') moveState.s = false;
-            if(e.code === 'KeyD') moveState.d = false;
-            if(e.code === 'ControlLeft') moveState.ctrl = false;
-        }
-
-        function toggleInventory() {
-            isInventoryOpen = !isInventoryOpen;
-            document.getElementById('inventory').style.display = isInventoryOpen ? 'block' : 'none';
-            if(isInventoryOpen) controls.unlock();
-            else controls.lock();
+            document.addEventListener('keydown', (e) => {
+                if(e.code === 'KeyW') moveState.w = true;
+                if(e.code === 'KeyA') moveState.a = true;
+                if(e.code === 'KeyS') moveState.s = true;
+                if(e.code === 'KeyD') moveState.d = true;
+                if(e.code === 'ControlLeft') moveState.ctrl = true;
+                if(e.code === 'KeyF') interact();
+            });
+            document.addEventListener('keyup', (e) => {
+                if(e.code === 'KeyW') moveState.w = false;
+                if(e.code === 'KeyA') moveState.a = false;
+                if(e.code === 'KeyS') moveState.s = false;
+                if(e.code === 'KeyD') moveState.d = false;
+                if(e.code === 'ControlLeft') moveState.ctrl = false;
+            });
         }
 
         function interact() {
@@ -201,8 +187,8 @@
                 if(!data.viewed && data.id !== 'door') {
                     data.viewed = true; tutorialScore++;
                     if(tutorialScore >= 2) {
-                        document.getElementById('objective').innerText = ">>> 문이 열렸습니다.";
-                        doorMesh.userData.msg = "에피소드 1 클리어! (클릭 시 종료)";
+                        document.getElementById('objective').innerText = ">>> 탈출구가 활성화되었습니다.";
+                        doorMesh.userData.msg = "탈출 성공! (클릭 시 종료)";
                     }
                 } else if(data.id === 'door' && tutorialScore >= 2) {
                     window.location.href = "index.html";
@@ -210,31 +196,24 @@
             }
         }
 
-        // --- PAUSED 메뉴용 버튼 함수 ---
-        window.resumeGame = () => {
-            controls.lock();
-        };
-        window.saveAndExit = () => {
-            window.location.href = "index.html";
-        };
+        window.resumeGame = () => controls.lock();
+        window.saveAndExit = () => window.location.href = "index.html";
 
         function animate() {
             requestAnimationFrame(animate);
             const time = performance.now();
             const delta = Math.min((time - prevTime) / 1000, 0.1);
 
-            if (controls.isLocked) {
-                // 속도 대폭 하향 조정 (400 -> 150)
-                let speedMult = (moveState.ctrl && stamina > 0) ? 2.0 : 1.0;
-                if(moveState.ctrl && (moveState.w || moveState.s || moveState.a || moveState.d)) stamina -= 35 * delta;
-                else stamina = Math.min(100, stamina + 12 * delta);
+            if (controls && controls.isLocked) {
+                let speedMult = (moveState.ctrl && stamina > 0) ? 1.8 : 1.0;
+                if(moveState.ctrl && (moveState.w || moveState.s || moveState.a || moveState.d)) stamina -= 40 * delta;
+                else stamina = Math.min(100, stamina + 15 * delta);
                 document.getElementById('stamina-bar').style.width = stamina + "%";
 
                 velocity.x -= velocity.x * 10.0 * delta;
                 velocity.z -= velocity.z * 10.0 * delta;
                 
-                // 가속도 값 수정
-                const accel = 150.0;
+                const accel = 120.0;
                 if (moveState.w) velocity.z -= accel * delta * speedMult;
                 if (moveState.s) velocity.z += accel * delta * speedMult;
                 if (moveState.a) velocity.x -= accel * delta * speedMult;
@@ -243,9 +222,11 @@
                 controls.moveRight(velocity.x * delta);
                 controls.moveForward(-velocity.z * delta);
 
+                // 경계 제한
                 camera.position.x = Math.max(-4.4, Math.min(4.4, camera.position.x));
                 camera.position.z = Math.max(-4.4, Math.min(4.4, camera.position.z));
 
+                // 레이캐스팅
                 raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
                 const hits = raycaster.intersectObjects(interactables);
                 if(hits.length > 0 && hits[0].distance < 3) {
@@ -253,10 +234,12 @@
                     highlighted = hits[0].object;
                     highlighted.userData.outline.visible = true;
                     document.getElementById('crosshair').style.borderColor = "#f00";
+                    document.getElementById('crosshair').style.transform = "translate(-50%, -50%) scale(1.5)";
                 } else {
                     if(highlighted) highlighted.userData.outline.visible = false;
                     highlighted = null;
                     document.getElementById('crosshair').style.borderColor = "#fff";
+                    document.getElementById('crosshair').style.transform = "translate(-50%, -50%) scale(1)";
                 }
             }
             renderer.render(scene, camera);
@@ -264,7 +247,13 @@
         }
 
         window.onload = initSequence;
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        window.onresize = () => {
+            if(camera) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        };
     </script>
 </body>
 </html>
