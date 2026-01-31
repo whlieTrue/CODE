@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>MUS - EPISODE 1</title>
     <style>
-        /* 기본 스타일 */
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; background: #000;
@@ -15,7 +14,7 @@
         #terminal {
             width: 100%; height: 100%; background: #000; color: #0f0;
             padding: 30px; box-sizing: border-box; font-size: 18px;
-            line-height: 1.6; overflow-y: auto; position: absolute; top: 0; left: 0; z-index: 10;
+            line-height: 1.6; overflow-y: auto; position: absolute; top: 0; left: 0; z-index: 100;
         }
         .log-line { margin-bottom: 8px; white-space: pre-wrap; }
         .system-msg { color: #0f0; }
@@ -37,21 +36,27 @@
             100% { transform: translate(0); }
         }
 
-        /* --- 스토리 대화창 스타일 (처음엔 숨김) --- */
-        #story-ui {
-            display: none; width: 100vw; height: 100vh;
-            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('practice_room.jpg');
-            background-size: cover; background-position: center;
-            flex-direction: column; justify-content: flex-end; align-items: center;
+        /* --- Three.js 게임 UI --- */
+        #game-container { display: none; width: 100%; height: 100%; position: relative; }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 6px; height: 6px; border: 2px solid rgba(255,255,255,0.9);
+            border-radius: 50%; transform: translate(-50%, -50%);
+            transition: all 0.1s; pointer-events: none;
         }
-        #textbox {
-            width: 80%; max-width: 800px; height: 120px;
-            background: rgba(20, 20, 25, 0.9); border: 1px solid #444;
-            border-radius: 5px; margin-bottom: 50px; padding: 25px;
-            cursor: pointer; position: relative;
+        #dialogue {
+            position: absolute; bottom: 15%; left: 50%;
+            transform: translateX(-50%); color: white;
+            font-family: 'Courier New', monospace; font-size: 18px;
+            background: rgba(0,0,0,0.8); padding: 15px 30px;
+            border: 1px solid #ff3333; border-radius: 5px;
+            display: none; z-index: 10;
         }
-        #name { font-weight: bold; font-size: 1.1em; color: #4da6ff; margin-bottom: 8px; }
-        #text { line-height: 1.6; font-size: 1.05em; color: #eee; }
+        #game-ui {
+            position: absolute; top: 40px; left: 40px;
+            color: #ff3333; font-family: 'Courier New', monospace;
+            text-shadow: 2px 2px 5px #000; pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -64,27 +69,43 @@
         </div>
     </div>
 
-    <div id="story-ui">
-        <div id="textbox" onclick="nextScene()">
-            <div id="name">이름</div>
-            <div id="text">...</div>
+    <div id="game-container">
+        <div id="game-ui">
+            <h1 style="margin:0;">|MUS| EPISOD-1</h1>
+            <p id="objective">>>> 목표: 방 안의 단서를 조사하십시오. (W,A,S,D 이동 / F 상호작용)</p>
         </div>
+        <div id="crosshair"></div>
+        <div id="dialogue"></div>
     </div>
 
-    <script>
-        // --- 터미널 로직 ---
-        const logArea = document.getElementById('log');
-        const terminal = document.getElementById('terminal');
-        const choiceContainer = document.getElementById('choice-container');
-        const leaveBtn = document.getElementById('leave-btn');
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 
-        const introLines = [
-            "이 세계는 AI의 잘못된 발달로 인한 인간의 멸종이 일어났다.",
-            "난 이 세계를 탈출할 거다."
-        ];
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        async function initSequence() {
+        // --- 전역 변수 설정 ---
+        let scene, camera, renderer, controls, raycaster;
+        let moveState = { forward: false, backward: false, left: false, right: false };
+        let velocity = new THREE.Vector3();
+        let prevTime = performance.now();
+        let interactableObjects = [];
+        let highlightedObject = null;
+        const outlineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide });
+
+        // --- 터미널 관련 함수 (기존 코드 유지) ---
+        window.initSequence = async function() {
+            const logArea = document.getElementById('log');
+            const terminal = document.getElementById('terminal');
             const bootLogs = ["INITIALIZING SYSTEM...", "LOADING NEURAL NETWORK...", "DECODING SURVIVOR_LOG_#042..."];
+            
             for (let log of bootLogs) {
                 const d = document.createElement('div');
                 d.className = "log-line system-msg";
@@ -92,26 +113,26 @@
                 logArea.appendChild(d);
                 await new Promise(r => setTimeout(r, 400));
             }
-            await new Promise(r => setTimeout(r, 600));
+
+            const introLines = ["대충 멸망 "난 이 세계를 탈출할 거다."];
             for (let line of introLines) {
-                await typeWriter(line);
+                await typeWriter(line, logArea, terminal);
                 await new Promise(r => setTimeout(r, 800));
             }
-            choiceContainer.style.display = "block";
-            terminal.scrollTop = terminal.scrollHeight;
+            document.getElementById('choice-container').style.display = "block";
         }
 
-        function typeWriter(text) {
+        function typeWriter(text, area, term) {
             return new Promise(resolve => {
                 const div = document.createElement('div');
                 div.className = "log-line narrative-msg";
-                logArea.appendChild(div);
+                area.appendChild(div);
                 let i = 0;
                 function type() {
                     if (i < text.length) {
                         div.textContent += text.charAt(i);
                         i++;
-                        terminal.scrollTop = terminal.scrollHeight;
+                        term.scrollTop = term.scrollHeight;
                         setTimeout(type, 50);
                     } else { resolve(); }
                 }
@@ -119,61 +140,150 @@
             });
         }
 
-        function glitchButton() {
+        window.glitchButton = function() {
+            const leaveBtn = document.getElementById('leave-btn');
             leaveBtn.classList.add('glitch');
             leaveBtn.textContent = "[오류: 접근 불가]";
             setTimeout(() => {
                 leaveBtn.classList.remove('glitch');
                 leaveBtn.textContent = "[시스템 접속]";
                 leaveBtn.onclick = startGame;
-                const errorMsg = document.createElement('div');
-                errorMsg.className = "log-line";
-                errorMsg.style.color = "#f00";
-                errorMsg.textContent = "SYSTEM ERROR: 탈출 경로가 차단되었습니다. 강제 동기화를 시작합니다.";
-                logArea.appendChild(errorMsg);
-                terminal.scrollTop = terminal.scrollHeight;
             }, 1000);
         }
 
-        // --- 게임 시작 버튼 눌렀을 때 ---
-        function startGame() {
-            terminal.style.display = 'none'; // 터미널 숨기기
-            document.getElementById('story-ui').style.display = 'flex'; // 스토리 UI 보이기
-            nextScene(); // 첫 번째 대사 자동 시작
+        // --- 게임 시작 및 Three.js 초기화 ---
+        window.startGame = function() {
+            document.getElementById('terminal').style.display = 'none';
+            document.getElementById('game-container').style.display = 'block';
+            initThreeJS();
+            animate();
         }
 
-        // --- 스토리 데이터 및 로직 ---
-        const storyData = [
-            { name: "???", text: "???" },
-            { name: "???", text: "???" },
-            { name: "???", text: "???" },
-            { name: "???", text: "???" },
-            { name: "???", text: "???" },
-            { name: "???", text: "???" },
-            { name: "???", text: "???" },
-            { name: "???", text: "???" },
-            { name: "???", text: "???" }
-        ];
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x333333);
+            scene.fog = new THREE.Fog(0x333333, 1, 20);
 
-        let currentIdx = -1;
-        function nextScene() {
-            currentIdx++;
-            if (currentIdx < storyData.length) {
-                document.getElementById('name').innerText = storyData[currentIdx].name;
-                document.getElementById('text').innerText = storyData[currentIdx].text;
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('game-container').appendChild(renderer.domElement);
+
+            // 조명
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+            const light = new THREE.PointLight(0xffffff, 30, 15);
+            light.position.set(0, 4, 0);
+            scene.add(light);
+
+            // 컨트롤
+            controls = new PointerLockControls(camera, document.body);
+            document.addEventListener('click', () => controls.lock());
+
+            // 방
+            const room = new THREE.Mesh(
+                new THREE.BoxGeometry(10, 5, 10), 
+                new THREE.MeshStandardMaterial({ color: 0x666666, side: THREE.BackSide })
+            );
+            scene.add(room);
+
+            // 상호작용 아이템 생성 함수
+            function createItem(geo, mat, pos, name, msg) {
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(pos);
+                mesh.name = name;
+                mesh.userData = { message: msg };
                 
-                // 캐릭터별 이름 색상
-                const nameTag = document.getElementById('name');
-                if(storyData[currentIdx].name === "???") nameTag.style.color = "#4da6ff";
-                else if(storyData[currentIdx].name === "???") nameTag.style.color = "#ffdd44";
-                else nameTag.style.color = "#ff4d4d";
-            } else {
-                alert("연습(튜토리얼)이 시작됩니다!");
-                // 여기에 나중에 만들 튜토리얼 코드를 넣으세요!
+                const outline = new THREE.Mesh(geo, outlineMat);
+                outline.scale.multiplyScalar(1.08);
+                outline.position.copy(pos);
+                outline.visible = false;
+                mesh.userData.outline = outline;
+
+                scene.add(mesh, outline);
+                interactableObjects.push(mesh);
+            }
+
+            // 아이템 배치
+            createItem(new THREE.BoxGeometry(0.3, 0.02, 0.3), new THREE.MeshStandardMaterial({color: 0xffff00}), new THREE.Vector3(-2, -2.48, -1), "memo", '"밖으로 나가면 안 돼"');
+            createItem(new THREE.BoxGeometry(1.6, 1, 0.2), new THREE.MeshStandardMaterial({color: 0x111111}), new THREE.Vector3(0, -1.2, -4.8), "tv", "기괴한 노이즈가 화면을 채우고 있다.");
+
+            raycaster = new THREE.Raycaster();
+
+            // 키보드 이벤트
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+        }
+
+        function onKeyDown(e) {
+            if(e.code === 'KeyW') moveState.forward = true;
+            if(e.code === 'KeyS') moveState.backward = true;
+            if(e.code === 'KeyA') moveState.left = true;
+            if(e.code === 'KeyD') moveState.right = true;
+            if(e.code === 'KeyF' && controls.isLocked) interact();
+        }
+
+        function onKeyUp(e) {
+            if(e.code === 'KeyW') moveState.forward = false;
+            if(e.code === 'KeyS') moveState.backward = false;
+            if(e.code === 'KeyA') moveState.left = false;
+            if(e.code === 'KeyD') moveState.right = false;
+        }
+
+        function interact() {
+            if (highlightedObject) {
+                const diag = document.getElementById('dialogue');
+                diag.innerText = highlightedObject.userData.message;
+                diag.style.display = 'block';
+                setTimeout(() => diag.style.display = 'none', 3000);
             }
         }
 
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
+
+            if (controls && controls.isLocked) {
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                const dirZ = Number(moveState.forward) - Number(moveState.backward);
+                const dirX = Number(moveState.right) - Number(moveState.left);
+                if (dirZ !== 0) velocity.z -= dirZ * 40.0 * delta;
+                if (dirX !== 0) velocity.x -= dirX * 40.0 * delta;
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
+
+                // 상호작용 하이라이트 체크
+                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const hits = raycaster.intersectObjects(interactableObjects);
+                if (hits.length > 0 && hits[0].distance < 3) {
+                    const target = hits[0].object;
+                    if (highlightedObject !== target) {
+                        if (highlightedObject) highlightedObject.userData.outline.visible = false;
+                        highlightedObject = target;
+                        highlightedObject.userData.outline.visible = true;
+                        document.getElementById('crosshair').style.borderColor = "#ff3333";
+                    }
+                } else {
+                    if (highlightedObject) {
+                        highlightedObject.userData.outline.visible = false;
+                        highlightedObject = null;
+                        document.getElementById('crosshair').style.borderColor = "rgba(255,255,255,0.9)";
+                    }
+                }
+            }
+            renderer.render(scene, camera);
+            prevTime = time;
+        }
+
         window.onload = initSequence;
+        window.addEventListener('resize', () => {
+            if (camera) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
     </script>
 </body>
 </html>
