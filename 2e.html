@@ -14,27 +14,27 @@
         #esc-menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         .btn { background: transparent; border: 1px solid #0f0; color: #0f0; padding: 12px 25px; cursor: pointer; margin: 10px 0; display: block; width: 220px; font-family: inherit; font-size: 16px; text-align: center; }
         .btn:hover { background: #0f0; color: #000; }
-        #fade-in-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 1000; animation: fadeInEffect 2s forwards; pointer-events: none; }
-        @keyframes fadeInEffect { from { opacity: 1; } to { opacity: 0; } }
+        #fade-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: black; opacity: 0; z-index: 1000; pointer-events: none; }
+        .fade-out { animation: fadeOut 2s forwards; }
+        @keyframes fadeOut { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
     <div id="game-container">
-        <div id="fade-in-overlay"></div>
         <div id="game-ui">
             <h2 style="margin:0;">|MUS| EPISODE-2: 발전소</h2>
-            <p id="objective">>>> [화면 클릭] 가시성이 확보되었습니다. 장치를 조사하세요.</p>
+            <p id="objective">>>> [화면 클릭] 기어를 작동시켜 탈출하십시오.</p>
         </div>
         <div id="crosshair"></div>
         <div id="dialogue"></div>
         <div id="stamina-bar-container"><div id="stamina-bar"></div></div>
-        
         <div id="esc-menu">
             <h1 style="color:#0f0; letter-spacing: 15px; margin-bottom:30px;">PAUSED</h1>
             <button class="btn" onclick="resumeGame()">계속하기</button>
             <button class="btn" onclick="saveAndExit()">저장 후 종료</button>
         </div>
+        <div id="fade-overlay"></div>
     </div>
 
     <script type="importmap">
@@ -50,15 +50,19 @@
         let velocity = new THREE.Vector3();
         let prevTime = performance.now();
         let stamina = 100;
-        let interactables = [];
-        let gearMesh;
+        
+        const colliders = []; // 충돌 판정 대상
+        const interactables = [];
+        let gearGroup, doorMesh;
+        let isPowerOn = false;
+        let doorOpen = false;
 
         init();
         animate();
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x333333); // 배경색도 살짝 밝게
+            scene.background = new THREE.Color(0x222222);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
             camera.position.set(0, 0, 8); 
@@ -68,102 +72,106 @@
             renderer.setPixelRatio(window.devicePixelRatio);
             document.getElementById('game-container').appendChild(renderer.domElement);
 
-            // 조명 대폭 강화
-            const ambient = new THREE.AmbientLight(0xffffff, 0.6); // 전체적인 밝기
-            scene.add(ambient);
-
-            const mainLight = new THREE.PointLight(0xffffff, 50, 30);
-            mainLight.position.set(0, 3, 0);
-            scene.add(mainLight);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const light = new THREE.PointLight(0xffffff, 30, 20);
+            light.position.set(0, 3, 2);
+            scene.add(light);
 
             controls = new PointerLockControls(camera, document.body);
             document.getElementById('game-container').addEventListener('mousedown', () => { 
                 if(!controls.isLocked) {
                     controls.lock();
                     if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
-                } else {
-                    interact();
-                }
+                } else { interact(); }
             });
 
-            controls.addEventListener('lock', () => { document.getElementById('esc-menu').style.display = 'none'; });
-            controls.addEventListener('unlock', () => { document.getElementById('esc-menu').style.display = 'flex'; });
-
-            // --- 밝은 회색 방 제작 ---
-            const wallMat = new THREE.MeshStandardMaterial({color: 0xaaaaaa, roughness: 0.5, metalness: 0.2});
-            const floorMat = new THREE.MeshStandardMaterial({color: 0x888888, roughness: 0.8});
+            // --- 맵 제작 ---
+            const wallMat = new THREE.MeshStandardMaterial({color: 0xaaaaaa});
             
-            // 바닥 및 천장
-            const boxGeo = new THREE.PlaneGeometry(15, 25);
-            const floor = new THREE.Mesh(boxGeo, floorMat);
-            floor.rotation.x = -Math.PI / 2; floor.position.y = -2.5; scene.add(floor);
+            // 바닥/천장/벽
+            const createBox = (w, h, d, x, y, z, mat, isCollider=true) => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+                mesh.position.set(x, y, z);
+                scene.add(mesh);
+                if(isCollider) colliders.push(new THREE.Box3().setFromObject(mesh));
+                return mesh;
+            };
 
-            const ceiling = new THREE.Mesh(boxGeo, wallMat);
-            ceiling.rotation.x = Math.PI / 2; ceiling.position.y = 4; scene.add(ceiling);
+            createBox(15, 0.1, 25, 0, -2.5, 0, wallMat); // 바닥
+            createBox(15, 0.1, 25, 0, 4, 0, wallMat);    // 천장
+            createBox(15, 7, 0.1, 0, 0.75, -12, wallMat); // 뒷벽
+            createBox(0.1, 7, 25, -7.5, 0.75, 0, wallMat); // 왼벽
+            createBox(0.1, 7, 25, 7.5, 0.75, 0, wallMat);  // 오른벽
 
-            // 벽면 제작
-            const wallGeoH = new THREE.PlaneGeometry(15, 7);
-            const wallGeoV = new THREE.PlaneGeometry(25, 7);
+            // --- 톱니바퀴 (Gear) 제작 ---
+            gearGroup = new THREE.Group();
+            const gearCenter = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.6, 16), new THREE.MeshStandardMaterial({color: 0x444444}));
+            gearCenter.rotation.z = Math.PI / 2;
+            gearGroup.add(gearCenter);
 
-            const backWall = new THREE.Mesh(wallGeoH, wallMat);
-            backWall.position.set(0, 0.75, -12); scene.add(backWall);
-
-            const leftWall = new THREE.Mesh(wallGeoV, wallMat);
-            leftWall.rotation.y = Math.PI / 2; leftWall.position.set(-7.5, 0.75, 0); scene.add(leftWall);
-
-            const rightWall = new THREE.Mesh(wallGeoV, wallMat);
-            rightWall.rotation.y = -Math.PI / 2; rightWall.position.set(7.5, 0.75, 0); scene.add(rightWall);
-
-            // --- 구조물 ---
-            // 오른쪽: 거대한 기어
-            const gearGeo = new THREE.CylinderGeometry(2.5, 2.5, 0.8, 20);
-            const gearMat = new THREE.MeshStandardMaterial({color: 0x555555, metalness: 0.8});
-            gearMesh = new THREE.Mesh(gearGeo, gearMat);
-            gearMesh.rotation.z = Math.PI / 2;
-            gearMesh.position.set(6.8, 0, -3);
-            scene.add(gearMesh);
-
-            // 왼쪽: 컴퓨터 콘솔
-            const consoleMat = new THREE.MeshStandardMaterial({color: 0x222222});
-            for(let i = 0; i < 3; i++) {
-                const consoleBox = new THREE.Mesh(new THREE.BoxGeometry(1, 2.5, 2), consoleMat);
-                consoleBox.position.set(-6.8, -1.25, -2 - (i * 4));
-                consoleBox.userData = { msg: "콘솔 데이터: '전압 60% 유지 중...'" };
-                interactables.push(consoleBox);
-                scene.add(consoleBox);
+            // 톱니 조각 추가
+            for(let i=0; i<12; i++){
+                const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.6), new THREE.MeshStandardMaterial({color: 0x333333}));
+                tooth.position.y = 2.0 * Math.cos((i/12) * Math.PI * 2);
+                tooth.position.z = 2.0 * Math.sin((i/12) * Math.PI * 2);
+                tooth.rotation.x = -(i/12) * Math.PI * 2;
+                gearGroup.add(tooth);
             }
+            gearGroup.position.set(6.5, 0, -3);
+            scene.add(gearGroup);
+            gearGroup.userData = { msg: "거대한 기어다. 전력이 있으면 돌아갈 것 같다.", id: "gear" };
+            interactables.push(gearGroup);
+            colliders.push(new THREE.Box3().setFromObject(gearGroup));
+
+            // --- 컴퓨터 콘솔 ---
+            const comp = createBox(1, 2.5, 2, -6.8, -1.25, -3, new THREE.MeshStandardMaterial({color: 0x111111}));
+            comp.userData = { msg: "메인 제어기: F를 눌러 전력을 활성화하십시오.", id: "computer" };
+            interactables.push(comp);
+
+            // --- 미닫이문 (Exit Door) ---
+            doorMesh = new THREE.Mesh(new THREE.BoxGeometry(4, 5, 0.2), new THREE.MeshStandardMaterial({color: 0x222222}));
+            doorMesh.position.set(0, 0.5, -11.9);
+            scene.add(doorMesh);
 
             raycaster = new THREE.Raycaster();
-            document.addEventListener('keydown', (e) => {
-                if(e.code === 'KeyW') moveState.w = true;
-                if(e.code === 'KeyA') moveState.a = true;
-                if(e.code === 'KeyS') moveState.s = true;
-                if(e.code === 'KeyD') moveState.d = true;
+            window.addEventListener('keydown', (e) => { 
                 if(e.code === 'KeyR') moveState.r = true;
+                else moveState[e.code.replace('Key','').toLowerCase()] = true;
                 if(e.code === 'KeyF') interact();
             });
-            document.addEventListener('keyup', (e) => {
-                if(e.code === 'KeyW') moveState.w = false;
-                if(e.code === 'KeyA') moveState.a = false;
-                if(e.code === 'KeyS') moveState.s = false;
-                if(e.code === 'KeyD') moveState.d = false;
+            window.addEventListener('keyup', (e) => {
                 if(e.code === 'KeyR') moveState.r = false;
+                else moveState[e.code.replace('Key','').toLowerCase()] = false;
             });
         }
 
         function interact() {
             raycaster.setFromCamera(new THREE.Vector2(), camera);
-            const intersects = raycaster.intersectObjects(interactables);
-            if (intersects.length > 0 && intersects[0].distance < 4) {
+            const hits = raycaster.intersectObjects(interactables, true);
+            if (hits.length > 0 && hits[0].distance < 4) {
+                let obj = hits[0].object;
+                while(obj.parent && !obj.userData.id) obj = obj.parent;
+                
                 const diag = document.getElementById('dialogue');
-                diag.innerText = intersects[0].object.userData.msg;
+                if(obj.userData.id === "computer") {
+                    isPowerOn = true;
+                    diag.innerText = "전력이 공급되었습니다! 기어가 돌아갑니다.";
+                    document.getElementById('objective').innerText = ">>> 목표: 열린 문으로 탈출하십시오.";
+                } else {
+                    diag.innerText = obj.userData.msg;
+                }
                 diag.style.display = 'block';
                 setTimeout(() => diag.style.display = 'none', 3000);
             }
         }
 
-        window.resumeGame = () => controls.lock();
-        window.saveAndExit = () => window.location.href = "index.html";
+        function checkCollision(newPos) {
+            const playerBox = new THREE.Box3().setFromCenterAndSize(newPos, new THREE.Vector3(0.8, 1.8, 0.8));
+            for(let box of colliders) {
+                if(playerBox.intersectsBox(box)) return true;
+            }
+            return false;
+        }
 
         function animate() {
             requestAnimationFrame(animate);
@@ -171,39 +179,43 @@
             const delta = Math.min((time - prevTime) / 1000, 0.1);
 
             if (controls.isLocked) {
-                gearMesh.rotation.x += 0.01;
+                if(isPowerOn) {
+                    gearGroup.rotation.x += 0.05;
+                    if(doorMesh.position.x < 4) doorMesh.position.x += 0.05; // 미닫이문 열림
+                }
 
-                let speedMult = (moveState.r && stamina > 0) ? 2.0 : 1.0;
-                if(moveState.r && (moveState.w || moveState.s || moveState.a || moveState.d)) stamina -= 30 * delta;
+                let speed = (moveState.r && stamina > 0) ? 2.0 : 1.0;
+                if(moveState.r && (moveState.w || moveState.s)) stamina -= 30 * delta;
                 else stamina = Math.min(100, stamina + 12 * delta);
                 document.getElementById('stamina-bar').style.width = stamina + "%";
 
                 velocity.x -= velocity.x * 10.0 * delta;
                 velocity.z -= velocity.z * 10.0 * delta;
-                
                 const accel = 60.0;
-                if (moveState.w) velocity.z -= accel * delta * speedMult;
-                if (moveState.s) velocity.z += accel * delta * speedMult;
-                if (moveState.a) velocity.x -= accel * delta * speedMult;
-                if (moveState.d) velocity.x += accel * delta * speedMult;
+                if (moveState.w) velocity.z -= accel * delta * speed;
+                if (moveState.s) velocity.z += accel * delta * speed;
+                if (moveState.a) velocity.x -= accel * delta * speed;
+                if (moveState.d) velocity.x += accel * delta * speed;
 
+                const nextPos = camera.position.clone();
                 controls.moveRight(velocity.x * delta);
                 controls.moveForward(-velocity.z * delta);
 
-                // 경계 제한
-                camera.position.x = Math.max(-6.5, Math.min(6.5, camera.position.x));
-                camera.position.z = Math.max(-11, Math.min(11, camera.position.z));
-            }
+                // 충돌 시 이전 위치로 복구
+                if(checkCollision(camera.position)) camera.position.copy(nextPos);
 
+                // 탈출 조건
+                if(isPowerOn && camera.position.z < -11) {
+                    document.getElementById('fade-overlay').classList.add('fade-out');
+                    setTimeout(() => window.location.href = "index.html", 2000);
+                }
+            }
             renderer.render(scene, camera);
             prevTime = time;
         }
 
-        window.onresize = () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        };
+        window.resumeGame = () => controls.lock();
+        window.saveAndExit = () => window.location.href = "index.html";
     </script>
 </body>
 </html>
