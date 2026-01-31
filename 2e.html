@@ -1,1 +1,223 @@
+<!DOCTYPE html>
 
+<html lang="ko">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>|MUS| EPISOD-1</title>
+
+    <style>
+
+        body { margin: 0; overflow: hidden; background-color: #000; }
+
+        #ui-layer {
+
+            position: absolute; top: 20px; left: 20px;
+
+            color: white; font-family: 'Courier New', Courier, monospace;
+
+            pointer-events: none; text-shadow: 2px 2px 4px #000;
+
+        }
+
+        canvas { display: block; }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div id="ui-layer">
+
+        <h1>EP1: 깨어남</h1>
+
+        <p>목표: 거울을 확인하세요.</p>
+
+    </div>
+
+
+
+    <script type="importmap">
+
+        {
+
+            "imports": {
+
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+
+            }
+
+        }
+
+    </script>
+
+
+
+    <script type="module">
+
+        import * as THREE from 'three';
+
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+
+
+        // 1. 기본 씬 설정
+
+        const scene = new THREE.Scene();
+
+        scene.fog = new THREE.Fog(0x111111, 0, 15); // 폐허 느낌의 안개
+
+
+
+        const camera = new THREE.Camera(); // 나중에 실제 카메라로 교체
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        document.body.appendChild(renderer.domElement);
+
+
+
+        // 2. 플레이어 및 카메라 설정
+
+        const playerCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        playerCamera.position.set(0, 1.6, 3); // 사람 눈높이
+
+
+
+        // 마우스 클릭 시 화면 고정 (1인칭 시점)
+
+        const controls = new PointerLockControls(playerCamera, document.body);
+
+        document.addEventListener('click', () => controls.lock());
+
+
+
+        // 3. 임시 방 (Room) 생성
+
+        const roomGeo = new THREE.BoxGeometry(10, 5, 10);
+
+        const roomMat = new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.BackSide });
+
+        const room = new THREE.Mesh(roomGeo, roomMat);
+
+        scene.add(room);
+
+
+
+        // 조명
+
+        const light = new THREE.PointLight(0xffffff, 10, 10);
+
+        light.position.set(0, 2, 0);
+
+        scene.add(light);
+
+        scene.add(new THREE.AmbientLight(0x404040));
+
+
+
+        // 4. 거울 (특수 연출용)
+
+        const mirrorGeo = new THREE.PlaneGeometry(1.5, 2);
+
+        const mirrorMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
+
+        const mirror = new THREE.Mesh(mirrorGeo, mirrorMat);
+
+        mirror.position.set(0, 1.5, -4.9);
+
+        scene.add(mirror);
+
+
+
+        // 거울 속 나 (지연 연출용 가짜 모델)
+
+        const mirrorPlayerGeo = new THREE.BoxGeometry(0.5, 1.5, 0.2);
+
+        const mirrorPlayerMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+
+        const mirrorPlayer = new THREE.Mesh(mirrorPlayerGeo, mirrorPlayerMat);
+
+        scene.add(mirrorPlayer);
+
+
+
+        // 5. 지연 로직 (History Queue)
+
+        const history = [];
+
+        const delay = 20; // 프레임 지연 정도
+
+
+
+        function animate() {
+
+            requestAnimationFrame(animate);
+
+
+
+            // 카메라의 현재 위치/회전 기록
+
+            history.push({
+
+                pos: playerCamera.position.clone(),
+
+                rot: playerCamera.rotation.clone()
+
+            });
+
+
+
+            // 거울 속 나의 움직임 (지연된 데이터 적용)
+
+            if (history.length > delay) {
+
+                const data = history.shift();
+
+                // 거울 대칭 효과 (Z축 반전 및 위치 조정)
+
+                mirrorPlayer.position.set(data.pos.x, data.pos.y, -4.8); 
+
+                mirrorPlayer.rotation.set(data.rot.x, -data.rot.y, data.rot.z);
+
+            }
+
+
+
+            renderer.render(scene, playerCamera);
+
+        }
+
+
+
+        // 창 크기 조절 대응
+
+        window.addEventListener('resize', () => {
+
+            playerCamera.aspect = window.innerWidth / window.innerHeight;
+
+            playerCamera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+        });
+
+
+
+        animate();
+
+    </script>
+
+</body>
+
+</html>
