@@ -2,209 +2,200 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>|MUS| EPISOD-1</title>
+    <title>MUS - EPISODE 2: POWER PLANT</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #222; cursor: crosshair; }
-        #ui {
-            position: absolute; top: 40px; left: 40px;
-            color: #ff3333; font-family: 'Courier New', monospace;
-            text-shadow: 2px 2px 5px #000; pointer-events: none;
-        }
-        #crosshair {
-            position: absolute; top: 50%; left: 50%;
-            width: 6px; height: 6px; border: 2px solid rgba(255,255,255,0.9);
-            border-radius: 50%; transform: translate(-50%, -50%);
-            transition: all 0.1s;
-        }
-        #dialogue {
-            position: absolute; bottom: 15%; left: 50%;
-            transform: translateX(-50%); color: white;
-            font-family: 'Courier New', monospace; font-size: 18px;
-            background: rgba(0,0,0,0.8); padding: 15px 30px;
-            border: 1px solid #ff3333; border-radius: 5px;
-            display: none; z-index: 10;
-        }
-        #instructions {
-            position: absolute; bottom: 20px; left: 20px;
-            color: rgba(255,255,255,0.7); font-family: sans-serif; font-size: 12px;
-        }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        #game-container { width: 100%; height: 100%; position: relative; }
+        #game-ui { position: absolute; top: 20px; left: 20px; color: #00ff00; text-shadow: 2px 2px 5px #000; pointer-events: none; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 8px; height: 8px; border: 2px solid #fff; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 20; }
+        #dialogue { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.8); padding: 15px 30px; border: 1px solid #00ff00; display: none; z-index: 50; }
+        #stamina-bar-container { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 200px; height: 8px; background: rgba(255,255,255,0.2); border: 1px solid #fff; }
+        #stamina-bar { width: 100%; height: 100%; background: #ffdd44; }
+        #esc-menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+        .btn { background: transparent; border: 1px solid #0f0; color: #0f0; padding: 12px 25px; cursor: pointer; margin: 10px 0; display: block; width: 220px; font-family: inherit; font-size: 16px; text-align: center; }
+        .btn:hover { background: #0f0; color: #000; }
+        /* 에피소드 시작 페이드 인 */
+        #fade-in-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 1000; animation: fadeInEffect 2s forwards; pointer-events: none; }
+        @keyframes fadeInEffect { from { opacity: 1; } to { opacity: 0; } }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <h1 style="margin:0;">|MUS| EPISOD-1</h1>
-        <p id="objective">>>> 목표: 방 안의 단서를 조사하십시오.</p>
+
+    <div id="game-container">
+        <div id="fade-in-overlay"></div>
+        <div id="game-ui">
+            <h2 style="margin:0;">|MUS| EPISODE-2</h2>
+            <p id="objective">>>> 목표: 전력을 복구하십시오. (메인 콘솔 확인)</p>
+        </div>
+        <div id="crosshair"></div>
+        <div id="dialogue"></div>
+        <div id="stamina-bar-container"><div id="stamina-bar"></div></div>
+        
+        <div id="esc-menu">
+            <h1 style="color:#0f0; letter-spacing: 15px; margin-bottom:30px;">PAUSED</h1>
+            <button class="btn" onclick="resumeGame()">계속하기</button>
+            <button class="btn" onclick="saveAndExit()">저장 후 종료</button>
+        </div>
     </div>
-    <div id="crosshair"></div>
-    <div id="dialogue"></div>
-    <div id="instructions">클릭: 조작 시작 | W,A,S,D: 이동 | F: 상호작용(아이템 조준 시 외곽선 발생)</div>
 
     <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
     </script>
 
     <script type="module">
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // --- 1. 기본 씬 설정 (방 밝기 향상) ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x444444); // 밝은 회색 배경
-
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // --- 2. 조명 (매우 밝게 설정) ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-        scene.add(ambientLight);
-
-        const mainLight = new THREE.PointLight(0xffffff, 30, 20);
-        mainLight.position.set(0, 4, 0);
-        scene.add(mainLight);
-
-        // --- 3. 방 구조 ---
-        const room = new THREE.Mesh(
-            new THREE.BoxGeometry(10, 5, 10), 
-            new THREE.MeshStandardMaterial({ color: 0x888888, side: THREE.BackSide })
-        );
-        scene.add(room);
-
-        // --- 4. 외곽선 효과 전용 머티리얼 ---
-        const outlineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.BackSide });
-
-        // --- 5. 사물 및 상호작용 설정 ---
-        const interactableObjects = [];
-        let highlightedObject = null;
-
-        function createInteractable(geometry, material, position, name, message) {
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.copy(position);
-            mesh.name = name;
-            mesh.userData = { message: message };
-            
-            // 외곽선용 메쉬 생성 (살짝 더 크게)
-            const outline = new THREE.Mesh(geometry, outlineMat);
-            outline.scale.multiplyScalar(1.05);
-            outline.position.copy(position);
-            outline.visible = false;
-            
-            mesh.userData.outline = outline;
-            scene.add(mesh, outline);
-            interactableObjects.push(mesh);
-            return mesh;
-        }
-
-        // 포스트잇
-        createInteractable(
-            new THREE.BoxGeometry(0.3, 0.01, 0.3),
-            new THREE.MeshStandardMaterial({ color: 0xffff00 }),
-            new THREE.Vector3(-2, -2.48, -1),
-            "memo",
-            '"밖으로 나가면 안 돼"'
-        );
-
-        // TV
-        createInteractable(
-            new THREE.BoxGeometry(1.6, 1, 0.2),
-            new THREE.MeshStandardMaterial({ color: 0x111111 }),
-            new THREE.Vector3(0, -1.2, -4.8),
-            "tv",
-            "지직거리는 노이즈가 가득하다."
-        );
-
-        // --- 6. 조작 및 이동 로직 ---
-        const controls = new PointerLockControls(camera, document.body);
-        document.addEventListener('click', () => controls.lock());
-
-        const moveState = { forward: false, backward: false, left: false, right: false };
-        const velocity = new THREE.Vector3();
+        let scene, camera, renderer, controls, raycaster;
+        let moveState = { w: false, a: false, s: false, d: false, r: false };
+        let velocity = new THREE.Vector3();
         let prevTime = performance.now();
-        const raycaster = new THREE.Raycaster();
+        
+        let stamina = 100;
+        let interactables = [];
+        let gearMesh; // 애니메이션을 위한 기어 변수
 
-        document.addEventListener('keydown', (e) => {
-            if(e.code === 'KeyW') moveState.forward = true;
-            if(e.code === 'KeyS') moveState.backward = true;
-            if(e.code === 'KeyA') moveState.left = true;
-            if(e.code === 'KeyD') moveState.right = true;
-            if(e.code === 'KeyF' && controls.isLocked) checkClickInteraction();
-        });
+        init();
+        animate();
 
-        document.addEventListener('keyup', (e) => {
-            if(e.code === 'KeyW') moveState.forward = false;
-            if(e.code === 'KeyS') moveState.backward = false;
-            if(e.code === 'KeyA') moveState.left = false;
-            if(e.code === 'KeyD') moveState.right = false;
-        });
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050505);
+            scene.fog = new THREE.FogExp2(0x050505, 0.15); // 안개 효과
 
-        // 매 프레임 조준점 체크 (외곽선 활성화)
-        function checkHover() {
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(interactableObjects);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.y = 0.5;
 
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('game-container').appendChild(renderer.domElement);
+
+            // 조명 (어두운 발전소 분위기)
+            const ambient = new THREE.AmbientLight(0x404040, 0.5);
+            scene.add(ambient);
+            const light = new THREE.PointLight(0x00ff00, 10, 20); // 초록색 비상등
+            light.position.set(-3, 2, -2);
+            scene.add(light);
+
+            controls = new PointerLockControls(camera, document.body);
+            document.body.addEventListener('click', () => { 
+                if(!controls.isLocked) controls.lock(); 
+            });
+
+            controls.addEventListener('lock', () => { document.getElementById('esc-menu').style.display = 'none'; });
+            controls.addEventListener('unlock', () => { document.getElementById('esc-menu').style.display = 'flex'; });
+
+            // 바닥 및 벽
+            const floorMat = new THREE.MeshStandardMaterial({color: 0x111111, roughness: 0.8});
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 40), floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -2;
+            scene.add(floor);
+
+            // --- [오른쪽] 거대한 기어 배치 ---
+            const gearGroup = new THREE.Group();
+            const gearMat = new THREE.MeshStandardMaterial({color: 0x332211, metalness: 0.8, roughness: 0.4});
+            
+            // 메인 톱니바퀴 바디
+            gearMesh = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 0.5, 12), gearMat);
+            gearMesh.rotation.z = Math.PI / 2;
+            gearMesh.position.set(4, 0.5, -5);
+            scene.add(gearMesh);
+
+            // --- [왼쪽] 이상한 컴퓨터 콘솔들 ---
+            const consoleMat = new THREE.MeshStandardMaterial({color: 0x222222});
+            const screenMat = new THREE.MeshBasicMaterial({color: 0x003300});
+            
+            for(let i = 0; i < 3; i++) {
+                const consoleBox = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.8), consoleMat);
+                consoleBox.position.set(-4, -1, -3 - (i * 2));
+                
+                const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.5), screenMat);
+                screen.position.set(-3.49, -0.5, -3 - (i * 2));
+                screen.rotation.y = Math.PI / 2;
+                
+                scene.add(consoleBox, screen);
+                consoleBox.userData = { msg: "시스템 로그: '전력 공급 장치 응답 없음...'" };
+                interactables.push(consoleBox);
+            }
+
+            // 상호작용 레이캐스터
+            raycaster = new THREE.Raycaster();
+
+            // 이벤트 리스너
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
+        }
+
+        function onKeyDown(e) {
+            if(e.code === 'KeyW') moveState.w = true;
+            if(e.code === 'KeyA') moveState.a = true;
+            if(e.code === 'KeyS') moveState.s = true;
+            if(e.code === 'KeyD') moveState.d = true;
+            if(e.code === 'KeyR') moveState.r = true;
+            if(e.code === 'KeyF') interact();
+        }
+
+        function onKeyUp(e) {
+            if(e.code === 'KeyW') moveState.w = false;
+            if(e.code === 'KeyA') moveState.a = false;
+            if(e.code === 'KeyS') moveState.s = false;
+            if(e.code === 'KeyD') moveState.d = false;
+            if(e.code === 'KeyR') moveState.r = false;
+        }
+
+        function interact() {
+            raycaster.setFromCamera(new THREE.Vector2(), camera);
+            const intersects = raycaster.intersectObjects(interactables);
             if (intersects.length > 0 && intersects[0].distance < 3) {
-                const target = intersects[0].object;
-                if (highlightedObject !== target) {
-                    if (highlightedObject) highlightedObject.userData.outline.visible = false;
-                    highlightedObject = target;
-                    highlightedObject.userData.outline.visible = true;
-                    document.getElementById('crosshair').style.borderColor = "#ff3333";
-                    document.getElementById('crosshair').style.transform = "translate(-50%, -50%) scale(1.5)";
-                }
-            } else {
-                if (highlightedObject) {
-                    highlightedObject.userData.outline.visible = false;
-                    highlightedObject = null;
-                    document.getElementById('crosshair').style.borderColor = "rgba(255,255,255,0.9)";
-                    document.getElementById('crosshair').style.transform = "translate(-50%, -50%) scale(1)";
-                }
+                const diag = document.getElementById('dialogue');
+                diag.innerText = intersects[0].object.userData.msg;
+                diag.style.display = 'block';
+                setTimeout(() => diag.style.display = 'none', 3000);
             }
         }
 
-        function checkClickInteraction() {
-            if (highlightedObject) {
-                const dialogueUI = document.getElementById('dialogue');
-                dialogueUI.innerText = highlightedObject.userData.message;
-                dialogueUI.style.display = 'block';
-                setTimeout(() => { dialogueUI.style.display = 'none'; }, 3000);
-            }
-        }
+        window.resumeGame = () => controls.lock();
+        window.saveAndExit = () => window.location.href = "index.html";
 
         function animate() {
             requestAnimationFrame(animate);
             const time = performance.now();
-            const delta = (time - prevTime) / 1000;
+            const delta = Math.min((time - prevTime) / 1000, 0.1);
 
             if (controls.isLocked) {
+                // 기어 회전 (정지 상태 표현 가능)
+                gearMesh.rotation.x += 0.01;
+
+                // 이동 및 스테미나 (60 accel 적용)
+                let speedMult = (moveState.r && stamina > 0) ? 2.2 : 1.0;
+                if(moveState.r && (moveState.w || moveState.s)) stamina -= 30 * delta;
+                else stamina = Math.min(100, stamina + 12 * delta);
+                document.getElementById('stamina-bar').style.width = stamina + "%";
+
                 velocity.x -= velocity.x * 10.0 * delta;
                 velocity.z -= velocity.z * 10.0 * delta;
-                const dirZ = Number(moveState.forward) - Number(moveState.backward);
-                const dirX = Number(moveState.right) - Number(moveState.left);
-                if (dirZ !== 0) velocity.z -= dirZ * 40.0 * delta;
-                if (dirX !== 0) velocity.x -= dirX * 40.0 * delta;
-                controls.moveRight(-velocity.x * delta);
-                controls.moveForward(-velocity.z * delta);
                 
-                checkHover(); // 조준 중인 사물 강조
+                const accel = 60.0;
+                if (moveState.w) velocity.z -= accel * delta * speedMult;
+                if (moveState.s) velocity.z += accel * delta * speedMult;
+                if (moveState.a) velocity.x -= accel * delta * speedMult;
+                if (moveState.d) velocity.x += accel * delta * speedMult;
+
+                controls.moveRight(velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
             }
 
             renderer.render(scene, camera);
             prevTime = time;
         }
 
-        window.addEventListener('resize', () => {
+        window.onresize = () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        animate();
+        };
     </script>
 </body>
 </html>
