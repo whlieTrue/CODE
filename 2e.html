@@ -4,25 +4,32 @@
     <meta charset="UTF-8">
     <title>|MUS| EPISOD-1</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; }
+        body { margin: 0; overflow: hidden; background: #000; cursor: crosshair; }
         #ui {
             position: absolute; top: 40px; left: 40px;
-            color: #ff0000; font-family: 'Courier New', monospace;
-            letter-spacing: 2px; pointer-events: none;
+            color: #ff3333; font-family: 'Courier New', monospace;
+            text-shadow: 2px 2px 5px #000; pointer-events: none;
         }
         #crosshair {
             position: absolute; top: 50%; left: 50%;
-            width: 10px; height: 10px; border: 1px solid white;
+            width: 8px; height: 8px; border: 1px solid rgba(255,255,255,0.5);
             border-radius: 50%; transform: translate(-50%, -50%);
+        }
+        #instructions {
+            position: absolute; bottom: 20px; left: 50%;
+            transform: translateX(-50%); color: white;
+            font-family: sans-serif; font-size: 12px; background: rgba(0,0,0,0.5);
+            padding: 10px; border-radius: 5px;
         }
     </style>
 </head>
 <body>
     <div id="ui">
-        <h1 style="font-size: 1.5em;">|MUS| EPISOD-1</h1>
-        <p>>>> 깨어남... 거울을 확인하라.</p>
+        <h1 style="margin:0;">|MUS| EPISOD-1</h1>
+        <p id="objective">>>> 목표: 주변을 조사하십시오.</p>
     </div>
     <div id="crosshair"></div>
+    <div id="instructions">화면 클릭: 조작 시작 | W,A,S,D: 이동 | ESC: 일시정지</div>
 
     <script type="importmap">
         {
@@ -37,66 +44,133 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
+        // --- 1. 기본 씬 및 카메라 설정 ---
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        scene.background = new THREE.Color(0x050505);
+        scene.fog = new THREE.Fog(0x050505, 1, 15);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
-        // 플레이어 컨트롤러
+        // --- 2. 조명 ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffffff, 15, 10);
+        pointLight.position.set(0, 3, 0);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+
+        // --- 3. 방 (Room) 생성 ---
+        const roomSize = 10;
+        const roomGeo = new THREE.BoxGeometry(roomSize, 5, roomSize);
+        const roomMat = new THREE.MeshStandardMaterial({ color: 0x202020, side: THREE.BackSide });
+        const room = new THREE.Mesh(roomGeo, roomMat);
+        room.receiveShadow = true;
+        scene.add(room);
+
+        // --- 4. 사물 배치 (그레이박싱) ---
+
+        // 침대
+        const bed = new THREE.Group();
+        const mattress = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 3.5), new THREE.MeshStandardMaterial({color: 0x444444}));
+        const pillow = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.6), new THREE.MeshStandardMaterial({color: 0x666666}));
+        pillow.position.set(0, 0.35, -1.2);
+        bed.add(mattress, pillow);
+        bed.position.set(-3.5, -2.25, -3);
+        scene.add(bed);
+
+        // TV 및 선반
+        const tvGroup = new THREE.Group();
+        const tvStand = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 0.8), new THREE.MeshStandardMaterial({color: 0x151515}));
+        const tvBody = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1, 0.2), new THREE.MeshStandardMaterial({color: 0x000000}));
+        tvBody.position.set(0, 0.9, 0);
+        const tvScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.9), new THREE.MeshBasicMaterial({color: 0x111111}));
+        tvScreen.position.set(0, 0.9, 0.11);
+        tvGroup.add(tvStand, tvBody, tvScreen);
+        tvGroup.position.set(0, -2.1, -4.5);
+        scene.add(tvGroup);
+
+        // 메모 (바닥)
+        const memo = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.3), new THREE.MeshBasicMaterial({color: 0xeeeeee, side: THREE.DoubleSide}));
+        memo.position.set(-2, -2.49, -1);
+        memo.rotation.x = Math.PI / 2;
+        scene.add(memo);
+
+        // --- 5. 거울 및 지연된 분신 ---
+        const mirror = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.5), new THREE.MeshBasicMaterial({color: 0x222222}));
+        mirror.position.set(3, 0, -4.95);
+        scene.add(mirror);
+
+        const mirrorGhost = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.7, 0.2), new THREE.MeshStandardMaterial({color: 0x330000}));
+        scene.add(mirrorGhost);
+
+        // --- 6. 플레이어 컨트롤 로직 ---
         const controls = new PointerLockControls(camera, document.body);
         document.addEventListener('click', () => controls.lock());
 
-        // 조명 및 방 (기초)
-        scene.add(new THREE.AmbientLight(0x404040, 2));
-        const room = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 20), new THREE.MeshStandardMaterial({color: 0x222222, side: THREE.BackSide}));
-        scene.add(room);
-
-        // 거울 & 거울 속 나
-        const mirror = new THREE.Mesh(new THREE.PlaneGeometry(2, 3), new THREE.MeshBasicMaterial({color: 0x333333}));
-        mirror.position.set(0, 2, -9.9);
-        scene.add(mirror);
-
-        const mirrorBody = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 0.3), new THREE.MeshStandardMaterial({color: 0x550000}));
-        scene.add(mirrorBody);
-
-        // 이동 로직용 변수
-        let prevTime = performance.now();
         const moveState = { forward: false, backward: false, left: false, right: false };
         const velocity = new THREE.Vector3();
+        let prevTime = performance.now();
+        const history = []; // 거울 지연용 기록
 
-        document.addEventListener('keydown', (e) => { if(e.code in {KeyW:1, KeyS:1, KeyA:1, KeyD:1}) moveState[e.code === 'KeyW' ? 'forward' : e.code === 'KeyS' ? 'backward' : e.code === 'KeyA' ? 'left' : 'right'] = true; });
-        document.addEventListener('keyup', (e) => { if(e.code in {KeyW:1, KeyS:1, KeyA:1, KeyD:1}) moveState[e.code === 'KeyW' ? 'forward' : e.code === 'KeyS' ? 'backward' : e.code === 'KeyA' ? 'left' : 'right'] = false; });
+        document.addEventListener('keydown', (e) => {
+            if(e.code === 'KeyW') moveState.forward = true;
+            if(e.code === 'KeyS') moveState.backward = true;
+            if(e.code === 'KeyA') moveState.left = true;
+            if(e.code === 'KeyD') moveState.right = true;
+        });
+        document.addEventListener('keyup', (e) => {
+            if(e.code === 'KeyW') moveState.forward = false;
+            if(e.code === 'KeyS') moveState.backward = false;
+            if(e.code === 'KeyA') moveState.left = false;
+            if(e.code === 'KeyD') moveState.right = false;
+        });
 
-        const history = [];
-
+        // --- 7. 애니메이션 루프 ---
         function animate() {
             requestAnimationFrame(animate);
             const time = performance.now();
             const delta = (time - prevTime) / 1000;
 
             if (controls.isLocked) {
+                // 마찰력 및 가속도 계산
                 velocity.x -= velocity.x * 10.0 * delta;
                 velocity.z -= velocity.z * 10.0 * delta;
-                if (moveState.forward) velocity.z -= 40.0 * delta;
-                if (moveState.backward) velocity.z += 40.0 * delta;
-                if (moveState.left) velocity.x -= 40.0 * delta;
-                if (moveState.right) velocity.x += 40.0 * delta;
+
+                const dirZ = Number(moveState.forward) - Number(moveState.backward);
+                const dirX = Number(moveState.right) - Number(moveState.left);
+
+                if (dirZ !== 0) velocity.z -= dirZ * 40.0 * delta;
+                if (dirX !== 0) velocity.x -= dirX * 40.0 * delta;
+
                 controls.moveRight(-velocity.x * delta);
                 controls.moveForward(-velocity.z * delta);
             }
 
-            // 거울 지연 연출
+            // 거울 지연 로직 (약 0.3초 지연)
             history.push({ p: camera.position.clone(), r: camera.rotation.clone() });
-            if (history.length > 20) {
-                const d = history.shift();
-                mirrorBody.position.set(d.p.x, d.p.y - 0.5, -9.5); // 거울 앞에 위치
-                mirrorBody.rotation.y = d.r.y + Math.PI; // 마주 보는 방향
+            if (history.length > 25) {
+                const oldFrame = history.shift();
+                // 플레이어의 위치를 거울면에 대칭시켜 표현
+                mirrorGhost.position.set(oldFrame.p.x, oldFrame.p.y - 0.5, -4.6);
+                mirrorGhost.rotation.y = oldFrame.r.y + Math.PI;
             }
 
             renderer.render(scene, camera);
             prevTime = time;
         }
+
+        // 창 크기 대응
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
         animate();
     </script>
 </body>
