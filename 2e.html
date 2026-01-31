@@ -1,223 +1,103 @@
 <!DOCTYPE html>
-
 <html lang="ko">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>|MUS| EPISOD-1</title>
-
     <style>
-
-        body { margin: 0; overflow: hidden; background-color: #000; }
-
-        #ui-layer {
-
-            position: absolute; top: 20px; left: 20px;
-
-            color: white; font-family: 'Courier New', Courier, monospace;
-
-            pointer-events: none; text-shadow: 2px 2px 4px #000;
-
+        body { margin: 0; overflow: hidden; background: #000; }
+        #ui {
+            position: absolute; top: 40px; left: 40px;
+            color: #ff0000; font-family: 'Courier New', monospace;
+            letter-spacing: 2px; pointer-events: none;
         }
-
-        canvas { display: block; }
-
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 10px; height: 10px; border: 1px solid white;
+            border-radius: 50%; transform: translate(-50%, -50%);
+        }
     </style>
-
 </head>
-
 <body>
-
-    <div id="ui-layer">
-
-        <h1>EP1: 깨어남</h1>
-
-        <p>목표: 거울을 확인하세요.</p>
-
+    <div id="ui">
+        <h1 style="font-size: 1.5em;">|MUS| EPISOD-1</h1>
+        <p>>>> 깨어남... 거울을 확인하라.</p>
     </div>
-
-
+    <div id="crosshair"></div>
 
     <script type="importmap">
-
         {
-
             "imports": {
-
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-
                 "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-
             }
-
         }
-
     </script>
 
-
-
     <script type="module">
-
         import * as THREE from 'three';
-
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-
-
-        // 1. 기본 씬 설정
-
         const scene = new THREE.Scene();
-
-        scene.fog = new THREE.Fog(0x111111, 0, 15); // 폐허 느낌의 안개
-
-
-
-        const camera = new THREE.Camera(); // 나중에 실제 카메라로 교체
-
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-
         renderer.setSize(window.innerWidth, window.innerHeight);
-
         document.body.appendChild(renderer.domElement);
 
-
-
-        // 2. 플레이어 및 카메라 설정
-
-        const playerCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-        playerCamera.position.set(0, 1.6, 3); // 사람 눈높이
-
-
-
-        // 마우스 클릭 시 화면 고정 (1인칭 시점)
-
-        const controls = new PointerLockControls(playerCamera, document.body);
-
+        // 플레이어 컨트롤러
+        const controls = new PointerLockControls(camera, document.body);
         document.addEventListener('click', () => controls.lock());
 
-
-
-        // 3. 임시 방 (Room) 생성
-
-        const roomGeo = new THREE.BoxGeometry(10, 5, 10);
-
-        const roomMat = new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.BackSide });
-
-        const room = new THREE.Mesh(roomGeo, roomMat);
-
+        // 조명 및 방 (기초)
+        scene.add(new THREE.AmbientLight(0x404040, 2));
+        const room = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 20), new THREE.MeshStandardMaterial({color: 0x222222, side: THREE.BackSide}));
         scene.add(room);
 
-
-
-        // 조명
-
-        const light = new THREE.PointLight(0xffffff, 10, 10);
-
-        light.position.set(0, 2, 0);
-
-        scene.add(light);
-
-        scene.add(new THREE.AmbientLight(0x404040));
-
-
-
-        // 4. 거울 (특수 연출용)
-
-        const mirrorGeo = new THREE.PlaneGeometry(1.5, 2);
-
-        const mirrorMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
-
-        const mirror = new THREE.Mesh(mirrorGeo, mirrorMat);
-
-        mirror.position.set(0, 1.5, -4.9);
-
+        // 거울 & 거울 속 나
+        const mirror = new THREE.Mesh(new THREE.PlaneGeometry(2, 3), new THREE.MeshBasicMaterial({color: 0x333333}));
+        mirror.position.set(0, 2, -9.9);
         scene.add(mirror);
 
+        const mirrorBody = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.8, 0.3), new THREE.MeshStandardMaterial({color: 0x550000}));
+        scene.add(mirrorBody);
 
+        // 이동 로직용 변수
+        let prevTime = performance.now();
+        const moveState = { forward: false, backward: false, left: false, right: false };
+        const velocity = new THREE.Vector3();
 
-        // 거울 속 나 (지연 연출용 가짜 모델)
-
-        const mirrorPlayerGeo = new THREE.BoxGeometry(0.5, 1.5, 0.2);
-
-        const mirrorPlayerMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-
-        const mirrorPlayer = new THREE.Mesh(mirrorPlayerGeo, mirrorPlayerMat);
-
-        scene.add(mirrorPlayer);
-
-
-
-        // 5. 지연 로직 (History Queue)
+        document.addEventListener('keydown', (e) => { if(e.code in {KeyW:1, KeyS:1, KeyA:1, KeyD:1}) moveState[e.code === 'KeyW' ? 'forward' : e.code === 'KeyS' ? 'backward' : e.code === 'KeyA' ? 'left' : 'right'] = true; });
+        document.addEventListener('keyup', (e) => { if(e.code in {KeyW:1, KeyS:1, KeyA:1, KeyD:1}) moveState[e.code === 'KeyW' ? 'forward' : e.code === 'KeyS' ? 'backward' : e.code === 'KeyA' ? 'left' : 'right'] = false; });
 
         const history = [];
 
-        const delay = 20; // 프레임 지연 정도
-
-
-
         function animate() {
-
             requestAnimationFrame(animate);
+            const time = performance.now();
+            const delta = (time - prevTime) / 1000;
 
-
-
-            // 카메라의 현재 위치/회전 기록
-
-            history.push({
-
-                pos: playerCamera.position.clone(),
-
-                rot: playerCamera.rotation.clone()
-
-            });
-
-
-
-            // 거울 속 나의 움직임 (지연된 데이터 적용)
-
-            if (history.length > delay) {
-
-                const data = history.shift();
-
-                // 거울 대칭 효과 (Z축 반전 및 위치 조정)
-
-                mirrorPlayer.position.set(data.pos.x, data.pos.y, -4.8); 
-
-                mirrorPlayer.rotation.set(data.rot.x, -data.rot.y, data.rot.z);
-
+            if (controls.isLocked) {
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                if (moveState.forward) velocity.z -= 40.0 * delta;
+                if (moveState.backward) velocity.z += 40.0 * delta;
+                if (moveState.left) velocity.x -= 40.0 * delta;
+                if (moveState.right) velocity.x += 40.0 * delta;
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
             }
 
+            // 거울 지연 연출
+            history.push({ p: camera.position.clone(), r: camera.rotation.clone() });
+            if (history.length > 20) {
+                const d = history.shift();
+                mirrorBody.position.set(d.p.x, d.p.y - 0.5, -9.5); // 거울 앞에 위치
+                mirrorBody.rotation.y = d.r.y + Math.PI; // 마주 보는 방향
+            }
 
-
-            renderer.render(scene, playerCamera);
-
+            renderer.render(scene, camera);
+            prevTime = time;
         }
-
-
-
-        // 창 크기 조절 대응
-
-        window.addEventListener('resize', () => {
-
-            playerCamera.aspect = window.innerWidth / window.innerHeight;
-
-            playerCamera.updateProjectionMatrix();
-
-            renderer.setSize(window.innerWidth, window.innerHeight);
-
-        });
-
-
-
         animate();
-
     </script>
-
 </body>
-
 </html>
